@@ -1,151 +1,276 @@
-# KluePortal Auth/Tenant/RBAC Package
+# LaraRbac - Laravel RBAC with Constraint-Based Validation
 
-A Laravel package providing multi-tenant RBAC authentication with shared database and Redis sessions.
+A lightweight, high-performance Laravel RBAC package with JSON-based constraint validation system. Built for modern applications that need flexible, context-aware permission checking.
 
 ## Features
 
-- **Multi-tenant RBAC** with sophisticated role assignment
-- **Shared core database** across all services  
-- **Shared Redis sessions** for seamless authentication
-- **Performance optimized** with 1-hour caching (226ms response, 5MB memory)
-- **Filament integration** with panel-based tenant switching
-- **ULID support** with proper morph class mapping
-- **Type-safe DTOs** with automatic validation using ValidatedDTO
+- **Hybrid Architecture** - Database roles + JSON constraint storage for fast validation
+- **Individual Role Classes** - Each role extends `BaseRole` for clean organization
+- **Constraint-Based Validation** - Context-aware permission checking with type-safe rules
+- **JSON Storage** - Lightning-fast constraint validation with zero DB queries
+- **Extensible Rule System** - Easy to add custom validation rules
+- **Type-Safe** - Full PHP 8.3+ type hints and enums
+- **Minimal API** - Under 300 lines per class, focused and clean
 
 ## Installation
 
 ```bash
-composer require klueportal/auth-tenant-rbac
+composer require hdaklue/lara-rbac
 ```
 
 ## Quick Start
 
-The package will automatically register its service provider. Publish the configuration:
+Publish configuration and migrations:
 
 ```bash
-php artisan vendor:publish --tag=auth-tenant-rbac-config
+php artisan vendor:publish --tag=lararbac-config
+php artisan vendor:publish --tag=lararbac-migrations
+php artisan vendor:publish --tag=lararbac-constraints
+php artisan migrate
 ```
-
-## Configuration
-
-The package uses your application's default database connection and Redis session store to ensure shared authentication state across services.
 
 ## Usage
 
-### Basic Authentication
-```php
-// The package extends Laravel's standard authentication
-// Your existing auth code will work unchanged
-```
-
-### Tenant Management
-```php
-// Switch active tenant
-$user->switchActiveTenant($tenant);
-
-// Check tenant access
-$user->canAccessTenant($tenant);
-
-// Get assigned tenants
-$tenants = $user->getAssignedTenants();
-```
-
 ### Role Management
+
 ```php
+use Hdaklue\LaraRbac\Services\Role\RoleAssignmentService;
+
+$roleService = app(RoleAssignmentService::class);
+
 // Assign role to user on entity
-RoleManager::assign($user, $entity, 'admin');
+$roleService->assign($user, $project, 'admin');
 
-// Check role
-$hasRole = $user->hasRoleOn($entity, 'admin');
+// Check if user has role
+$hasRole = $roleService->hasRoleOn($user, $project, 'admin');
 
-// Get participants with roles
-$participants = RoleManager::getParticipants($entity);
+// Get all participants with roles
+$participants = $roleService->getParticipants($project);
 ```
 
-### Data Transfer Objects (DTOs)
+### Constraint-Based Permissions
 
-The package includes type-safe DTOs for consistent data handling:
-
-#### Tenant Creation
 ```php
-use MargRbac\DTOs\Tenant\CreateTenantDto;
-use MargRbac\DTOs\Tenant\TenantMemberDto;
+use Hdaklue\LaraRbac\Objects\ConstraintSet;
+use Hdaklue\LaraRbac\Context\Constraint;
+use Hdaklue\LaraRbac\Context\Rules\{LessThanOrEqual, Equals, In};
 
-// Create tenant with members
-$dto = CreateTenantDto::fromArray([
-    'name' => 'My Organization',
-    'members' => [
-        ['name' => 'john@example.com', 'role' => 'admin'],
-        ['name' => 'jane@example.com', 'role' => 'viewer'],
-    ]
+// Create constraint set
+$budgetConstraint = ConstraintSet::make('Budget Approval', 'Budget approval constraints')
+    ->constrain(Constraint::make('amount', new LessThanOrEqual(), 50000))
+    ->constrain(Constraint::make('department', new Equals(), 'finance'))
+    ->constrain(Constraint::make('priority', new In(), ['normal', 'high', 'critical']))
+    ->save();
+
+// Use with permission service
+use Hdaklue\LaraRbac\Services\Permission\PermissionManagementService;
+
+$permissionService = app(PermissionManagementService::class);
+
+// Check permission with context
+$canApprove = $permissionService->can($user, 'budget_approval', [
+    'amount' => 25000,
+    'department' => 'finance',
+    'priority' => 'high'
 ]);
-
-CreateTenant::run($dto, $user);
 ```
 
-#### Invitation Management
+### Role Classes
+
+Create individual role classes extending `BaseRole`:
+
 ```php
-use MargRbac\DTOs\Invitation\InvitationDTO;
-use MargRbac\DTOs\Invitation\TenantInvitationRoleDto;
+use Hdaklue\LaraRbac\Roles\BaseRole;
 
-// Create invitation
-$invitationDto = InvitationDTO::fromArray([
-    'sender' => $user,
-    'email' => 'newuser@example.com',
-    'name' => 'New User'
-]);
+class ProjectManager extends BaseRole
+{
+    protected string $name = 'Project Manager';
+    protected string $description = 'Can manage projects and team members';
+    
+    public function getPermissions(): array
+    {
+        return [
+            'project_edit',
+            'member_management',
+            'budget_approval'
+        ];
+    }
+}
+```
 
-// Define tenant roles for invitation
-$tenantRoles = [
-    TenantInvitationRoleDto::fromArray([
-        'tenant_id' => $tenant->id,
-        'role_id' => $adminRole->id
-    ])
+### Available Validation Rules
+
+The package includes built-in validation rules:
+
+- **Equals** - Exact equality (`===`)
+- **NotEquals** - Inequality (`!==`)
+- **LessThan** / **GreaterThan** - Numeric comparisons
+- **LessThanOrEqual** - Numeric less than or equal
+- **Between** - Range validation `[min, max]`
+- **Contains** - String/array contains
+- **In** - Array membership
+- **IsNull** / **IsNotNull** - Null checks
+
+### Context Validation Examples
+
+```php
+// Budget approval with multiple constraints
+$constraints = [
+    'amount' => 75000,           // Must be <= 50000 (fails)
+    'department' => 'finance',   // Must equal 'finance' (passes)
+    'priority' => 'high'         // Must be in array (passes)
 ];
 
-InviteTenantMember::run($invitationDto, $tenantRoles);
-```
+$result = $constraintSet->allows(null, $constraints); // false (amount too high)
 
-#### Available DTOs
-- `CreateTenantDto` - Tenant creation with members
-- `TenantMemberDto` - Individual tenant member with role
-- `InvitationDTO` - User invitation details
-- `TenantInvitationRoleDto` - Tenant-specific role assignment for invitations
+// Document access with security clearance
+$documentConstraint = ConstraintSet::make('Document Access')
+    ->constrain(Constraint::make('security_level', new In(), ['confidential', 'secret']))
+    ->constrain(Constraint::make('access_time', new Between(), [9, 17]));
+
+$canAccess = $documentConstraint->allows(null, [
+    'security_level' => 'confidential',
+    'access_time' => 14  // 2 PM
+]); // true
+```
 
 ## Architecture
 
 ### Package Structure
+
 ```
 src/
-├── Actions/           # Lorisleiva Actions for business logic
-├── Collections/       # Specialized Eloquent collections
-├── Concerns/          # Reusable traits
-├── Contracts/         # Interfaces and contracts
-├── DTOs/             # Validated Data Transfer Objects
-│   ├── Invitation/   # Invitation-related DTOs
-│   └── Tenant/       # Tenant management DTOs
-├── Enums/            # Role hierarchy enums
-├── Events/           # Laravel events
-├── Models/           # Eloquent models
-└── Services/         # Service layer classes
+├── Collections/Role/        # Specialized collections for role data
+├── Concerns/Role/          # Role-related traits and behaviors
+├── Context/                # Constraint validation system
+│   ├── Rules/             # Individual validation rule classes
+│   ├── Constraint.php     # Single constraint definition
+│   ├── ContextHelper.php  # Context value utilities
+│   └── ConstraintValidator.php
+├── Contracts/             # Interfaces for dependency injection
+├── Events/Role/          # Role assignment events
+├── Facades/              # Laravel facades
+├── Models/               # Eloquent models (Role, RoleableHasRole)
+├── Objects/              # Core objects (ConstraintSet)
+├── Providers/            # Service providers
+├── Roles/                # Individual role class implementations
+└── Services/             # Business logic services
+    ├── Permission/       # Permission management
+    └── Role/            # Role assignment logic
 ```
 
-### Key Architectural Decisions
-- **Contract-based design** - Heavy use of interfaces for dependency injection
-- **Service layer pattern** - Business logic encapsulated in services
-- **Event-driven architecture** - Domain events for decoupling
-- **Validated DTOs** - Type-safe data handling with automatic validation
-- **Shared database strategy** - Core authentication shared across microservices
+### Key Design Patterns
+
+- **Individual Rule Classes** - Each validation rule is its own focused class
+- **Constraint-Based Validation** - Context-aware permission checking
+- **JSON Storage** - Fast constraint loading without database hits
+- **Service Layer Pattern** - Clean separation of business logic
+- **Contract-Based Architecture** - Heavy use of interfaces
+- **Event-Driven** - Role changes dispatch domain events
+
+### Performance Characteristics
+
+- **Role Assignment**: Cached for 1 hour via Redis
+- **Constraint Validation**: JSON-based, significantly faster than database queries
+- **Zero Database Queries**: For constraint validation after initial load
+- **Optimized Memory Usage**: Lightweight objects with minimal overhead
+
+## Configuration
+
+### Database
+
+The package uses a `constraints` JSON column in the `roles` table to store permission keys, bridging the database role system with JSON constraint validation.
+
+```php
+// Role model with constraints
+$role = Role::find($id);
+$role->constraints = ['budget_approval', 'document_access'];
+$role->save();
+```
+
+### Constraint Storage
+
+Constraints are stored as JSON files in `config/constraints/`:
+
+```json
+{
+    "name": "Budget Approval",
+    "description": "Budget approval with amount limits",
+    "context_rules": [
+        {
+            "field": "amount",
+            "operator": "<=",
+            "value": 50000
+        },
+        {
+            "field": "department", 
+            "operator": "===",
+            "value": "finance"
+        }
+    ]
+}
+```
+
+## Extending the System
+
+### Custom Validation Rules
+
+Create new rules by extending `BaseRule`:
+
+```php
+use Hdaklue\LaraRbac\Context\Rules\BaseRule;
+
+class StartsWith extends BaseRule
+{
+    public function validate(mixed $contextValue, mixed $ruleValue): bool
+    {
+        return is_string($contextValue) && str_starts_with($contextValue, $ruleValue);
+    }
+    
+    public function isValidRuleValue(mixed $value): bool
+    {
+        return is_string($value);
+    }
+}
+```
+
+### Custom Role Classes
+
+```php
+class CustomRole extends BaseRole
+{
+    protected string $name = 'Custom Role';
+    
+    public function getPermissions(): array
+    {
+        return ['custom_permission'];
+    }
+    
+    public function canPerform(string $action, array $context = []): bool
+    {
+        // Custom role-specific logic
+        return parent::canPerform($action, $context);
+    }
+}
+```
 
 ## Requirements
 
-- Laravel 12+
-- Filament 4+
-- PHP 8.3+
-- Redis (for sessions and caching)
-- MySQL/PostgreSQL
-- wendelladriel/laravel-validated-dto (for DTOs)
+- **Laravel 12+** - Modern framework features
+- **PHP 8.3+** - Type hints, enums, readonly properties
+- **Redis** - Caching and session storage
+- **MySQL/PostgreSQL** - Database storage with JSON column support
+
+## Testing
+
+```bash
+# Run package tests
+vendor/bin/phpunit
+
+# Run with coverage
+vendor/bin/phpunit --coverage-text
+```
 
 ## License
 
-Proprietary - KluePortal Team
+MIT License - Free for commercial and personal use.
