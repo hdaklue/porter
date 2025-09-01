@@ -1,0 +1,32 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "simplified_null_return": false,
+        "new_with_braces": true,
+        "no_unused_imports": true,
+        "ordered_imports": {
+            "sort_algorithm": "alpha"
+        },
+        "single_import_per_statement": true,
+        "blank_line_after_opening_tag": true,
+        "blank_line_before_statement": {
+            "statements": ["return"]
+        },
+        "method_chaining_indentation": true,
+        "multiline_whitespace_before_semicolons": {
+            "strategy": "no_multi_line"
+        },
+        "no_extra_blank_lines": {
+            "tokens": [
+                "extra",
+                "throw",
+                "use",
+                "use_trait"
+            ]
+        },
+        "no_whitespace_in_blank_line": true,
+        "trailing_comma_in_multiline": {
+            "elements": ["arrays"]
+        }
+    }
+}

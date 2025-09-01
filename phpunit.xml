@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.0/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         processIsolation="false"
+         stopOnFailure="false"
+         executionOrder="random"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnEmptyTestSuite="true"
+         beStrictAboutOutputDuringTests="true"
+         cacheDirectory=".phpunit.cache"
+         backupStaticProperties="false">
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+    </source>
+    <php>
+        <!-- Testing Environment Variables -->
+        <env name="APP_ENV" value="testing"/>
+        <env name="CACHE_DRIVER" value="array"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="MAIL_MAILER" value="array"/>
+        
+        <!-- Database Configuration for SQLite -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <!-- <env name="DB_DATABASE" value="database/testing.sqlite"/> -->
+        
+        <!-- Redis Configuration for Testing -->
+        <env name="REDIS_HOST" value="127.0.0.1"/>
+        <env name="REDIS_PASSWORD" value=""/>
+        <env name="REDIS_PORT" value="6379"/>
+        
+        <!-- Package-specific Testing Configuration -->
+        <env name="ROLE_SHOULD_CACHE" value="true"/>
+        <env name="ROLE_CACHE_EXPIRATION_MINUTES" value="60"/>
+        
+        <!-- Performance Testing Limits -->
+        <env name="MAX_MEMORY_MB" value="5"/>
+        <env name="MAX_RESPONSE_TIME_MS" value="226"/>
+        
+        <!-- Bcrypt Configuration for Faster Testing -->
+        <env name="BCRYPT_ROUNDS" value="4"/>
+    </php>
+</phpunit>

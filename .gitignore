@@ -1,0 +1,63 @@
+# Dependencies
+/vendor/
+/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Laravel
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+storage/logs/*.log
+
+# Cache
+bootstrap/cache/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+# Compiled assets
+/public/hot
+/public/storage
+/storage/*.key
+
+# Testing
+coverage/
+.phpunit.cache
+build/
+
+# Composer
+composer.phar
+
+# Package development
+/build
+/dist
+/.phpunit.cache
+
+# AI Assistant Instructions
+CLAUDE.md
+GEMINI.md

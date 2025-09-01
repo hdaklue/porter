@@ -1,0 +1,56 @@
+{
+    "name": "hdaklue/lararbac",
+    "description": "Simple Laravel RBAC package for role-based access control with Redis caching",
+    "type": "library",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "KluePortal Team",
+            "email": "dev@klueportal.com"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "illuminate/database": "^12.0",
+        "illuminate/cache": "^12.0",
+        "illuminate/support": "^12.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0",
+        "laravel/pint": "^1.24"
+    },
+    "autoload": {
+        "psr-4": {
+            "Hdaklue\\LaraRbac\\": "src/",
+            "Hdaklue\\LaraRbac\\Database\\Factories\\": "database/factories/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Hdaklue\\LaraRbac\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Hdaklue\\LaraRbac\\Providers\\LaraRbacServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "test-coverage": "pest --coverage",
+        "test-parallel": "pest --parallel",
+        "lint": "pint",
+        "lint-check": "pint --test"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
