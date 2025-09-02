@@ -2,94 +2,123 @@
 
 declare(strict_types=1);
 
+namespace Hdaklue\Porter\Tests\Feature;
+
 use Hdaklue\Porter\RoleFactory;
 use Hdaklue\Porter\Validators\RoleValidator;
 use Illuminate\Support\Facades\File;
+use Hdaklue\Porter\Tests\TestCase;
 
-beforeEach(function () {
-    RoleValidator::clearCache();
-});
-
-afterEach(function () {
-    // Clean up created role files
-    $porterDir = config('porter.directory');
-    if (File::exists($porterDir)) {
-        File::deleteDirectory($porterDir);
+class RoleFactoryUsageSeparateProcessTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+        RoleValidator::clearCache();
+        
+        // Create temporary porter directory
+        $this->tempDir = sys_get_temp_dir() . '/porter_test_' . uniqid();
+        mkdir($this->tempDir, 0755, true);
+        
+        // Create BaseRole.php (should be ignored)
+        File::put($this->tempDir . '/BaseRole.php', '<?php
+namespace App\Porter;
+abstract class BaseRole {}
+');
     }
-});
 
-test('it demonstrates the new dynamic role factory usage', function () {
-    // Arrange: Create some roles using the porter command
-    $this->artisan('porter:create', [
-        'name' => 'Admin',
-        '--description' => 'Admin role',  // Simplified expectation
-    ])
-        ->expectsChoice('Select creation mode:', 'lowest', ['lowest', 'highest'])
-        ->assertSuccessful();
+    protected function tearDown(): void
+    {
+        // Clean up temp directory
+        if (is_dir($this->tempDir)) {
+            File::deleteDirectory($this->tempDir);
+        }
+        
+        RoleValidator::clearCache();
+        parent::tearDown();
+    }
 
-    $this->artisan('porter:create', [
-        'name' => 'ProjectManager',
-        '--description' => 'ProjectManager role',  // Simplified expectation
-    ])
-        ->expectsChoice('Select creation mode:', 'highest', ['lowest', 'highest', 'lower', 'higher'])
-        ->assertSuccessful();
+    /**
+     * @test
+     * @runInSeparateProcess
+     */
+    public function it_demonstrates_the_new_dynamic_role_factory_usage(): void
+    {
+        // Arrange: Create some roles using the porter command
+        $this->artisan('porter:create', [
+            'name' => 'Admin',
+            '--description' => 'Admin role',  // Simplified expectation
+        ])
+            ->expectsChoice('Select creation mode:', 'lowest', ['lowest', 'highest'])
+            ->assertSuccessful();
 
-    $this->artisan('porter:create', [
-        'name' => 'TeamLead',
-        '--description' => 'TeamLead role',  // Simplified expectation
-    ])
-        ->expectsChoice('Select creation mode:', 'lower', ['lowest', 'highest', 'lower', 'higher'])
-        ->expectsChoice('Which role do you want to reference?', 'ProjectManager', ['Admin', 'ProjectManager'])
-        ->assertSuccessful();
+        $this->artisan('porter:create', [
+            'name' => 'ProjectManager',
+            '--description' => 'ProjectManager role',  // Simplified expectation
+        ])
+            ->expectsChoice('Select creation mode:', 'highest', ['lowest', 'highest', 'lower', 'higher'])
+            ->assertSuccessful();
 
-    // Act: Use the dynamic factory methods - these work like magic!
-    $admin = RoleFactory::admin();                    // Creates Admin role
-    $projectManager = RoleFactory::projectManager();  // Creates ProjectManager role
-    $teamLead = RoleFactory::teamLead();             // Creates TeamLead role
+        $this->artisan('porter:create', [
+            'name' => 'TeamLead',
+            '--description' => 'TeamLead role',  // Simplified expectation
+        ])
+            ->expectsChoice('Select creation mode:', 'lower', ['lowest', 'highest', 'lower', 'higher'])
+            ->expectsChoice('Which role do you want to reference?', 'ProjectManager', ['Admin', 'ProjectManager'])
+            ->assertSuccessful();
 
-    // Assert: All roles are properly instantiated
-    expect($admin)->toBeInstanceOf(\App\Porter\Admin::class);
-    expect($projectManager)->toBeInstanceOf(\App\Porter\ProjectManager::class);
-    expect($teamLead)->toBeInstanceOf(\App\Porter\TeamLead::class);
+        // Act: Use the dynamic factory methods - these work like magic!
+        $admin = RoleFactory::admin();                    // Creates Admin role
+        $projectManager = RoleFactory::projectManager();  // Creates ProjectManager role
+        $teamLead = RoleFactory::teamLead();             // Creates TeamLead role
 
-    // Assert: Role properties are correct
-    expect($admin->getName())->toBe('admin');
-    expect($admin->getLevel())->toBe(1);
-    expect($admin->getDescription())->toBe('Admin role');  // Uses the name + "role" pattern
+        // Assert: All roles are properly instantiated
+        $this->assertInstanceOf(\App\Porter\Admin::class, $admin);
+        $this->assertInstanceOf(\App\Porter\ProjectManager::class, $projectManager);
+        $this->assertInstanceOf(\App\Porter\TeamLead::class, $teamLead);
 
-    expect($projectManager->getName())->toBe('project_manager');
-    expect($projectManager->getLevel())->toBe(3);  // Pushed up by TeamLead creation
-    expect($projectManager->getDescription())->toBe('ProjectManager role');  // Uses the name + "role" pattern
+        // Assert: Role properties are correct
+        $this->assertEquals('admin', $admin->getName());
+        $this->assertEquals(1, $admin->getLevel());
+        $this->assertEquals('Admin role', $admin->getDescription());
 
-    expect($teamLead->getName())->toBe('team_lead');
-    expect($teamLead->getLevel())->toBe(2);  // Takes ProjectManager's original level
-    expect($teamLead->getDescription())->toBe('TeamLead role');  // Uses the name + "role" pattern
+        $this->assertEquals('project_manager', $projectManager->getName());
+        $this->assertEquals(3, $projectManager->getLevel());  // Pushed up by TeamLead creation
+        $this->assertEquals('ProjectManager role', $projectManager->getDescription());
 
-    // Act: Test role comparison methods
-    expect($projectManager->isHigherThan($teamLead))->toBeTrue();
-    expect($teamLead->isHigherThan($admin))->toBeTrue();
-    expect($admin->isLowerThan($projectManager))->toBeTrue();
+        $this->assertEquals('team_lead', $teamLead->getName());
+        $this->assertEquals(2, $teamLead->getLevel());  // Takes ProjectManager's original level
+        $this->assertEquals('TeamLead role', $teamLead->getDescription());
 
-    // Act: Get all roles at once
-    $allRoles = RoleFactory::allFromPorterDirectory();
-    expect($allRoles)->toHaveCount(3);
-    expect($allRoles)->toHaveKeys(['Admin', 'ProjectManager', 'TeamLead']);
+        // Act: Test role comparison methods
+        $this->assertTrue($projectManager->isHigherThan($teamLead));
+        $this->assertTrue($teamLead->isHigherThan($admin));
+        $this->assertTrue($admin->isLowerThan($projectManager));
 
-    // Demonstrate usage with concern traits (type-safe!)
-    // Note: In a real app, you'd use these roles with your entities like:
-    // $user->assign($project, Porter::projectManager());
-    // $user->hasAssignmentOn($project, Porter::admin());
-})->inSeparateProcess();
-    
+        // Act: Get all roles at once
+        $allRoles = RoleFactory::allFromPorterDirectory();
+        $this->assertCount(3, $allRoles);
+        $this->assertArrayHasKey('Admin', $allRoles);
+        $this->assertArrayHasKey('ProjectManager', $allRoles);
+        $this->assertArrayHasKey('TeamLead', $allRoles);
 
-test('it allows configurable namespace and directory', function () {
-    // This test demonstrates that the factory reads from config
-    $porterDir = config('porter.directory');
-    $namespace = config('porter.namespace');
+        // Demonstrate usage with concern traits (type-safe!)
+        // Note: In a real app, you'd use these roles with your entities like:
+        // $user->assign($project, Porter::projectManager());
+        // $user->hasAssignmentOn($project, Porter::admin());
+    }
 
-    expect($porterDir)->toBe(app_path('Porter'));  // Default config
-    expect($namespace)->toBe('App\Porter');        // Default config
+    /** @test */
+    public function it_allows_configurable_namespace_and_directory(): void
+    {
+        // This test demonstrates that the factory reads from config
+        $porterDir = config('porter.directory');
+        $namespace = config('porter.namespace');
 
-    // The factory uses these config values internally
-    expect(RoleFactory::existsInPorterDirectory('NonExistent'))->toBeFalse();
-});
+        $this->assertEquals(app_path('Porter'), $porterDir);  // Default config
+        $this->assertEquals('App\\Porter', $namespace);        // Default config
+
+        // The factory uses these config values internally
+        $this->assertFalse(RoleFactory::existsInPorterDirectory('NonExistent'));
+    }
+}

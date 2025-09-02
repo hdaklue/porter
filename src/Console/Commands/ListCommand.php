@@ -253,11 +253,6 @@ class ListCommand extends Command
         if (! empty($duplicateLevels)) {
             $this->line('  <fg=red>Duplicate Levels: '.implode(', ', $duplicateLevels).'</fg=red>');
         }
-
-        if ($total > 0 && $active < $total) {
-            $this->newLine();
-            $this->warn('💡 Run "php artisan porter:doctor" to identify and fix issues');
-        }
     }
 
     private function findDuplicateLevels(array $roles): array
