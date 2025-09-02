@@ -186,7 +186,7 @@ class InstallCommand extends Command
         File::put($filepath, $content);
         $this->info("✅ Created role: {$name} (Level {$level})");
         $this->info('   🔑 Key: '.$this->generateRoleKey($name));
-        
+
         // Clear cache since we've created a new role file
         RoleValidator::clearCache();
     }
@@ -207,5 +207,4 @@ class InstallCommand extends Command
 
         return $plainKey;
     }
-
 }

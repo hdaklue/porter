@@ -55,7 +55,7 @@ return [
     | Porter automatically discovers roles from your Porter directory.
     | No manual configuration needed - just create role classes that extend BaseRole.
     |
-    | Directory: config('porter.directory') 
+    | Directory: config('porter.directory')
     | Namespace: config('porter.namespace')
     |
     */

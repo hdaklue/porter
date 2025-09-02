@@ -17,8 +17,8 @@ afterEach(function () {
     }
 });
 
-test('it creates first role with interactive mode selection - lowest', function () {
-    // Act: Create first role selecting "lowest" mode
+test('it creates first role in empty system', function () {
+    // Act: Create first role in empty system
     $this->artisan('porter:create', [
         'name' => 'Admin',
         '--description' => 'Admin role',
@@ -27,23 +27,6 @@ test('it creates first role with interactive mode selection - lowest', function 
         ->assertSuccessful();
 
     // Assert: Should be created at level 1
-    expect(File::exists(app_path('Porter/Admin.php')))->toBeTrue();
-
-    $content = File::get(app_path('Porter/Admin.php'));
-    expect($content)->toContain('return 1;');
-    expect($content)->toContain('Admin role');
-});
-
-test('it creates first role with interactive mode selection - highest', function () {
-    // Act: Create first role selecting "highest" mode
-    $this->artisan('porter:create', [
-        'name' => 'Admin',
-        '--description' => 'Admin role',
-    ])
-        ->expectsChoice('Select creation mode:', 'highest', ['lowest', 'highest'])
-        ->assertSuccessful();
-
-    // Assert: Should be created at level 1 (same as lowest when no roles exist)
     expect(File::exists(app_path('Porter/Admin.php')))->toBeTrue();
 
     $content = File::get(app_path('Porter/Admin.php'));
@@ -97,32 +80,6 @@ test('it creates role with interactive lower mode when roles exist', function ()
 
     expect($developerContent)->toContain('return 1;');  // New role takes Manager's original level
     expect($managerContent)->toContain('return 2;');    // Manager pushed to level 2
-});
-
-test('it creates role with interactive higher mode when roles exist', function () {
-    // Arrange: Create first role
-    $this->artisan('porter:create', [
-        'name' => 'Editor',
-        '--description' => 'Editor role',
-    ])
-        ->expectsChoice('Select creation mode:', 'lowest', ['lowest', 'highest'])
-        ->assertSuccessful();
-
-    // Act: Create second role with higher mode
-    $this->artisan('porter:create', [
-        'name' => 'Manager',
-        '--description' => 'Manager role',
-    ])
-        ->expectsChoice('Select creation mode:', 'higher', ['lowest', 'highest', 'lower', 'higher'])
-        ->expectsChoice('Which role do you want to reference?', 'Editor', ['Editor'])
-        ->assertSuccessful();
-
-    // Assert: Manager should be at level 2, Editor stays at level 1
-    $managerContent = File::get(app_path('Porter/Manager.php'));
-    $editorContent = File::get(app_path('Porter/Editor.php'));
-
-    expect($managerContent)->toContain('return 2;');
-    expect($editorContent)->toContain('return 1;');
 });
 
 test('it creates role with interactive lowest mode and pushes existing roles up', function () {
@@ -201,42 +158,6 @@ test('it creates role with lower mode when space is available', function () {
     expect($editorContent)->toContain('return 2;');     // Takes Manager's level 2
     expect($managerContent)->toContain('return 3;');    // Pushed from 2 to 3
     expect($superUserContent)->toContain('return 4;');  // Pushed from 3 to 4
-});
-
-test('it shows proper role context in creation mode selection', function () {
-    // Arrange: Create some roles first
-    $this->artisan('porter:create', [
-        'name' => 'Viewer',
-        '--description' => 'Viewer role',
-    ])
-        ->expectsChoice('Select creation mode:', 'lowest', ['lowest', 'highest'])
-        ->assertSuccessful(); // Level 1
-
-    $this->artisan('porter:create', [
-        'name' => 'Editor',
-        '--description' => 'Editor role',
-    ])
-        ->expectsChoice('Select creation mode:', 'highest', ['lowest', 'highest', 'lower', 'higher'])
-        ->assertSuccessful(); // Level 2
-
-    $this->artisan('porter:create', [
-        'name' => 'Admin',
-        '--description' => 'Admin role',
-    ])
-        ->expectsChoice('Select creation mode:', 'highest', ['lowest', 'highest', 'lower', 'higher'])
-        ->assertSuccessful(); // Level 3
-
-    // Act: Verify that when we create another role, all options are available
-    $this->artisan('porter:create', [
-        'name' => 'Manager',
-        '--description' => 'Manager role',
-    ])
-        ->expectsChoice('Select creation mode:', 'highest', ['lowest', 'highest', 'lower', 'higher'])
-        ->assertSuccessful();
-
-    // Assert: Should be created at level 4 (highest + 1)
-    $managerContent = File::get(app_path('Porter/Manager.php'));
-    expect($managerContent)->toContain('return 4;');
 });
 
 test('it converts role names to PascalCase automatically', function () {

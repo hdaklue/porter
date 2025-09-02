@@ -217,6 +217,7 @@ abstract class BaseRole implements RoleContract
                 \Hdaklue\Porter\Tests\Fixtures\TestEditor::class,
                 \Hdaklue\Porter\Tests\Fixtures\TestViewer::class,
             ];
+
             return array_map(fn ($class) => new $class(), $roleClasses);
         }
 
@@ -227,6 +228,7 @@ abstract class BaseRole implements RoleContract
                 \Hdaklue\Porter\Tests\Fixtures\TestEditor::class,
                 \Hdaklue\Porter\Tests\Fixtures\TestViewer::class,
             ];
+
             return array_map(fn ($class) => new $class(), $roleClasses);
         }
 
@@ -237,6 +239,7 @@ abstract class BaseRole implements RoleContract
                 \Hdaklue\Porter\Tests\Fixtures\TestEditor::class,
                 \Hdaklue\Porter\Tests\Fixtures\TestViewer::class,
             ];
+
             return array_map(fn ($class) => new $class(), $roleClasses);
         }
 

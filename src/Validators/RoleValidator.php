@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter\Validators;
 
-use Hdaklue\Porter\RoleFactory;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class RoleValidator
 {
-    private static array $cache = [];
-    private static array $contentHashes = [];
+    private static array $classPathCache = [];
 
     /**
      * Validate and normalize a role name to PascalCase
@@ -23,12 +20,13 @@ class RoleValidator
     }
 
     /**
-     * Check if a role name already exists - OPTIMIZED
+     * Check if a role name already exists - SIMPLIFIED
      */
     public static function nameExists(string $name, string $porterDir): bool
     {
-        // Use RoleFactory instead of file scanning
-        return RoleFactory::existsInPorterDirectory($name);
+        $classPaths = self::getClassPaths($porterDir);
+
+        return isset($classPaths[$name]);
     }
 
     /**
@@ -65,86 +63,52 @@ class RoleValidator
      */
     public static function isValidDescription(string $description): bool
     {
-        return !empty(trim($description));
+        return ! empty(trim($description));
     }
 
     /**
-     * Get all existing roles from the Porter directory - CONTENT-AWARE CACHED
+     * Get simple class path cache - SIMPLIFIED
+     */
+    private static function getClassPaths(string $directory): array
+    {
+        $cacheKey = md5($directory);
+
+        if (isset(self::$classPathCache[$cacheKey])) {
+            return self::$classPathCache[$cacheKey];
+        }
+
+        $classPaths = [];
+
+        if (File::exists($directory)) {
+            $files = File::glob("{$directory}/*.php");
+
+            foreach ($files as $file) {
+                $filename = pathinfo($file, PATHINFO_FILENAME);
+                if ($filename !== 'BaseRole') {
+                    $classPaths[$filename] = $file;
+                }
+            }
+        }
+
+        self::$classPathCache[$cacheKey] = $classPaths;
+
+        return $classPaths;
+    }
+
+    /**
+     * Get all existing roles from the Porter directory - SIMPLIFIED
      */
     public static function getExistingRoles(string $directory): array
     {
-        // Bypass cache in testing environment to ensure fresh file reads
-        if (app()->environment('testing')) {
-            return self::getExistingRolesFallback($directory);
-        }
-
-        $cacheKey = "porter_roles_" . md5($directory);
-
-        // Get roles directly using file system to avoid circular dependency
-        $roles = self::getExistingRolesFallback($directory);
-
-        // Generate content hash for cache invalidation
-        $contentHash = md5(serialize($roles));
-        
-        // Check if cache is still valid (content hasn't changed)
-        if (
-            isset(self::$cache[$cacheKey]) && 
-            isset(self::$contentHashes[$cacheKey]) &&
-            self::$contentHashes[$cacheKey] === $contentHash
-        ) {
-            return self::$cache[$cacheKey];
-        }
-
-        // Cache the result with content hash
-        self::$cache[$cacheKey] = $roles;
-        self::$contentHashes[$cacheKey] = $contentHash;
-
-        return $roles;
-    }
-
-    /**
-     * Original method kept as fallback - but optimized
-     */
-    private static function getExistingRolesFallback(string $directory): array
-    {
+        $classPaths = self::getClassPaths($directory);
         $roles = ['names' => [], 'levels' => []];
 
-        if (!File::exists($directory)) {
-            return $roles;
-        }
-
-        // Get all PHP files at once
-        $files = File::glob("{$directory}/*.php");
-        
-        // Filter out BaseRole to avoid processing it
-        $files = array_filter($files, fn($file) => basename($file) !== 'BaseRole.php');
-
-        // Process all files in batch
-        foreach ($files as $file) {
-            $filename = pathinfo($file, PATHINFO_FILENAME);
-            
-            // Try to instantiate the role class for accurate level
-            try {
-                $namespace = config('porter.namespace', 'App\\Porter');
-                $className = $namespace . '\\' . $filename;
-                
-                if (class_exists($className)) {
-                    $roleInstance = new $className();
-                    $level = $roleInstance->getLevel();
-                    
-                    $roles['names'][$filename] = $file;
-                    $roles['levels'][$level] = $filename;
-                    continue;
-                }
-            } catch (\Exception $e) {
-                // Fall back to file parsing
-            }
-
-            // Fallback: parse file content
-            $content = File::get($file);
+        foreach ($classPaths as $filename => $filePath) {
+            // Parse file content for level (avoid class instantiation)
+            $content = File::get($filePath);
             if (preg_match("/function getLevel\(\):\s*int\s*{\s*return\s+(\d+);/s", $content, $matches)) {
                 $level = (int) $matches[1];
-                $roles['names'][$filename] = $file;
+                $roles['names'][$filename] = $filePath;
                 $roles['levels'][$level] = $filename;
             }
         }
@@ -185,11 +149,12 @@ class RoleValidator
                 }
 
                 $highestLevel = max(array_keys($existingRoles['levels']));
+
                 return [$highestLevel + 1, []];
 
             case 'lower':
             case 'higher':
-                if (!$targetRole) {
+                if (! $targetRole) {
                     throw new \InvalidArgumentException("Target role is required for {$mode} mode");
                 }
 
@@ -207,7 +172,7 @@ class RoleValidator
 
                 if ($mode === 'lower') {
                     $newRoleLevel = $targetLevel;
-                    
+
                     foreach ($existingRoles['levels'] as $level => $name) {
                         if ($level >= $targetLevel) {
                             $newLevel = $level + 1;
@@ -265,27 +230,27 @@ class RoleValidator
 
         return [
             'lowest' => 'Create at lowest level (Level 1, push all roles up)',
-            'highest' => 'Create at highest level (Level ' . ($highestLevel + 1) . ')',
+            'highest' => 'Create at highest level (Level '.($highestLevel + 1).')',
             'lower' => 'Create below an existing role',
             'higher' => 'Create above an existing role',
         ];
     }
 
     /**
-     * Get role names for selection in lower/higher modes - OPTIMIZED
+     * Get role names for selection in lower/higher modes - SIMPLIFIED
      */
     public static function getSelectableRoles(string $porterDir): array
     {
-        $existingRoles = self::getExistingRoles($porterDir);
-        return array_keys($existingRoles['names']);
+        $classPaths = self::getClassPaths($porterDir);
+
+        return array_keys($classPaths);
     }
 
     /**
-     * Clear cache - useful for testing and after role modifications
+     * Clear cache - SIMPLIFIED (called after each create operation)
      */
     public static function clearCache(): void
     {
-        self::$cache = [];
-        self::$contentHashes = [];
+        self::$classPathCache = [];
     }
 }

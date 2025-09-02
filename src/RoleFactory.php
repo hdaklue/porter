@@ -112,16 +112,15 @@ final class RoleFactory
         $porterDir = config('porter.directory');
         $namespace = config('porter.namespace');
 
-        // Try to create role by class name
-        $existingRoles = RoleValidator::getExistingRoles($porterDir);
+        // Direct file check to avoid circular dependency with RoleValidator
+        $filePath = "{$porterDir}/{$roleName}.php";
 
-        if (! isset($existingRoles['names'][$roleName])) {
-            throw new InvalidArgumentException("Role '{$roleName}' does not exist in Porter directory '{$porterDir}'. Available roles: ".implode(', ', array_keys($existingRoles['names'])));
+        if (! file_exists($filePath)) {
+            throw new InvalidArgumentException("Role '{$roleName}' does not exist in Porter directory '{$porterDir}'.");
         }
 
-        // Build the role class name and file path
+        // Build the role class name
         $roleClass = "{$namespace}\\{$roleName}";
-        $filePath = $existingRoles['names'][$roleName];
 
         // Include the role file if class doesn't exist
         if (! class_exists($roleClass)) {
@@ -146,17 +145,27 @@ final class RoleFactory
     {
         $porterDir = config('porter.directory');
         $namespace = config('porter.namespace');
-        $existingRoles = RoleValidator::getExistingRoles($porterDir);
         $result = [];
 
-        foreach ($existingRoles['names'] as $roleName => $filePath) {
+        // Direct file scanning to avoid circular dependency
+        if (! is_dir($porterDir)) {
+            return $result;
+        }
+
+        $files = glob("{$porterDir}/*.php");
+        foreach ($files as $filePath) {
+            $roleName = pathinfo($filePath, PATHINFO_FILENAME);
+
+            // Skip BaseRole
+            if ($roleName === 'BaseRole') {
+                continue;
+            }
+
             $roleClass = "{$namespace}\\{$roleName}";
 
             // Include the role file if class doesn't exist
             if (! class_exists($roleClass)) {
-                if (file_exists($filePath)) {
-                    require_once $filePath;
-                }
+                require_once $filePath;
             }
 
             if (class_exists($roleClass)) {
@@ -176,8 +185,8 @@ final class RoleFactory
     public static function existsInPorterDirectory(string $roleName): bool
     {
         $porterDir = config('porter.directory');
-        $existingRoles = RoleValidator::getExistingRoles($porterDir);
+        $filePath = "{$porterDir}/{$roleName}.php";
 
-        return isset($existingRoles['names'][$roleName]);
+        return file_exists($filePath) && $roleName !== 'BaseRole';
     }
 }

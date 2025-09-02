@@ -633,27 +633,28 @@ php artisan porter:doctor
 
 ## Testing
 
-Porter comes with a comprehensive test suite:
+Porter features comprehensive testing with **78 tests** and **354 assertions** covering real-world scenarios and edge cases.
 
 ```bash
-# Run tests
+# Run complete test suite
 vendor/bin/pest
 
-# Run tests with coverage
+# Run with coverage reporting
 vendor/bin/pest --coverage
 
-# Run specific test suite
-vendor/bin/pest tests/Feature/RoleManagerDatabaseTest.php
+# Test specific components
+vendor/bin/pest tests/Feature/RoleValidatorTest.php    # Performance & caching
+vendor/bin/pest tests/Feature/RoleManagerDatabaseTest.php  # Database operations
+vendor/bin/pest tests/Feature/CreateRoleCommandTest.php    # Interactive commands
 ```
 
-**Test Coverage**: 52 tests, 309 assertions covering:
-- Unit tests for role classes and factory  
-- Feature tests for database operations
-- Integration tests with RefreshDatabase
-- Command testing for interactive role creation
-- Install command testing with different scenarios
-- Role factory and dynamic creation testing
-- Enhanced Roster model features
+### Test Coverage
+- **RoleValidator** (24 tests) - Caching, validation, and hierarchy calculations
+- **Commands** (17 tests) - Interactive role creation and installation
+- **Database** (16 tests) - Role assignments and model relationships  
+- **Unit Tests** (15 tests) - Core role logic and factory methods
+- **Edge Cases** (20+ scenarios) - File corruption, invalid states, race conditions
+
 
 --- 
 

@@ -348,7 +348,7 @@ class CreateRoleCommand extends Command
         );
 
         File::put($filepath, $content);
-        
+
         // Clear cache since we've modified role files
         RoleValidator::clearCache();
     }
@@ -413,7 +413,7 @@ class CreateRoleCommand extends Command
 
             File::put($filepath, $content);
             $this->info("   - Updated {$role['name']} from level {$oldLevel} to {$newLevel}");
-            
+
             // Clear cache after each role update
             RoleValidator::clearCache();
         }

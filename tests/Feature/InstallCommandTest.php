@@ -120,7 +120,7 @@ test('install command does not create BaseRole - users extend from package direc
 
     $porterDir = app_path('Porter');
     $baseRoleFile = "{$porterDir}/BaseRole.php";
-    
+
     // BaseRole.php should NOT be created - users should extend from package BaseRole directly
     expect(File::exists($baseRoleFile))->toBeFalse();
 });

@@ -73,7 +73,7 @@ class DoctorCommand extends Command
             $roleFiles = array_filter($roleFiles, function ($file) {
                 return basename($file) !== 'BaseRole.php';
             });
-            
+
             if (empty($roleFiles)) {
                 $this->warnings[] = 'No role files found in Porter directory. Run "php artisan porter:install --roles" or "php artisan porter:create" to create roles.';
             }
@@ -248,6 +248,7 @@ class DoctorCommand extends Command
 
         if (! File::exists($porterDir)) {
             $this->warnings[] = "Porter directory does not exist: {$porterDir}";
+
             return;
         }
 
@@ -258,6 +259,7 @@ class DoctorCommand extends Command
 
         if (empty($fileRoles)) {
             $this->warnings[] = 'No role files found. Create roles with "php artisan porter:create".';
+
             return;
         }
 
@@ -265,12 +267,12 @@ class DoctorCommand extends Command
         foreach ($fileRoles as $roleFile) {
             $content = File::get($roleFile);
             $className = basename($roleFile, '.php');
-            
-            if (!str_contains($content, 'extends BaseRole')) {
+
+            if (! str_contains($content, 'extends BaseRole')) {
                 $this->warnings[] = "Role {$className} does not extend BaseRole";
             }
-            
-            if (!str_contains($content, 'function getName(') || !str_contains($content, 'function getLevel(')) {
+
+            if (! str_contains($content, 'function getName(') || ! str_contains($content, 'function getLevel(')) {
                 $this->warnings[] = "Role {$className} missing required getName() or getLevel() methods";
             }
         }
