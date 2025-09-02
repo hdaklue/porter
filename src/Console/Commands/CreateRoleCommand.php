@@ -25,19 +25,29 @@ class CreateRoleCommand extends Command
         }
 
         $name = $this->argument('name') ?: $this->askForRoleName();
-        $level = $this->option('level') ? (int) $this->option('level') : $this->askForRoleLevel();
         $description = $this->option('description') ?: $this->askForRoleDescription($name);
 
+        $level = 0; // Initialize level
+
         if ($lower || $higher) {
-            $calculatedLevel = $this->handleHierarchyOptions($lower, $higher);
+            [$calculatedLevel, $rolesToUpdate] = $this->handleHierarchyOptions($lower, $higher);
             if ($calculatedLevel === Command::FAILURE) {
                 return Command::FAILURE;
             }
             $level = $calculatedLevel;
+
             // If --level was also provided, ignore it and warn the user
             if ($this->option('level')) {
                 $this->warn('The --level option is ignored when --lower or --higher is used.');
             }
+
+            // Update existing role files
+            if (!empty($rolesToUpdate)) {
+                $this->info('Updating levels of existing roles...');
+                $this->updateRoleLevelsInFiles($rolesToUpdate);
+            }
+        } else {
+            $level = $this->option('level') ? (int) $this->option('level') : $this->askForRoleLevel();
         }
 
         // Validate inputs
@@ -67,14 +77,15 @@ class CreateRoleCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function handleHierarchyOptions(?string $lower, ?string $higher, ?int &$level): void
+    private function handleHierarchyOptions(?string $lower, ?string $higher): array
     {
-        $existingRoles = $this->getExistingRoles(app_path('Porter'));
+        $porterDir = app_path('Porter');
+        $existingRoles = $this->getExistingRoles($porterDir);
         $roleNames = array_keys($existingRoles['names']);
 
         if (empty($roleNames)) {
             $this->error('There are no existing roles to reference.');
-            return;
+            return [Command::FAILURE, []]; // Return failure and empty array
         }
 
         $targetRoleName = $this->choice('Which role do you want to reference?', $roleNames);
@@ -89,19 +100,45 @@ class CreateRoleCommand extends Command
 
         if ($targetRoleLevel === null) {
             $this->error("Could not determine the level of the selected role: {$targetRoleName}");
-            return;
+            return [Command::FAILURE, []]; // Return failure and empty array
         }
+
+        $newRoleLevel = 0;
+        $rolesToUpdate = [];
 
         if ($lower) {
-            $level = $targetRoleLevel - 1;
-            $this->info("The new role will have level {$level} (lower than {$targetRoleName})");
-        } else {
-            $level = $targetRoleLevel + 1;
-            $this->info("The new role will have level {$level} (higher than {$targetRoleName})");
+            if ($targetRoleLevel === 1) {
+                $newRoleLevel = 1;
+                // All roles >= 1 need to be incremented
+                foreach ($existingRoles['levels'] as $level => $name) {
+                    $rolesToUpdate[] = ['name' => $name, 'old_level' => $level, 'new_level' => $level + 1, 'file' => $existingRoles['names'][$name]];
+                }
+            } else {
+                $newRoleLevel = $targetRoleLevel - 1;
+                // All roles >= newRoleLevel need to be incremented
+                foreach ($existingRoles['levels'] as $level => $name) {
+                    if ($level >= $newRoleLevel) {
+                        $rolesToUpdate[] = ['name' => $name, 'old_level' => $level, 'new_level' => $level + 1, 'file' => $existingRoles['names'][$name]];
+                    }
+                }
+            }
+        } else { // higher
+            $newRoleLevel = $targetRoleLevel + 1;
+            // All roles >= newRoleLevel need to be incremented
+            foreach ($existingRoles['levels'] as $level => $name) {
+                if ($level >= $newRoleLevel) {
+                    $rolesToUpdate[] = ['name' => $name, 'old_level' => $level, 'new_level' => $level + 1, 'file' => $existingRoles['names'][$name]];
+                }
+            }
         }
 
-        // Set the level for the main handle method
-        $this->level = $level;
+        // Check for level constraints (should not be 0 or less, already handled for lower=1)
+        if ($newRoleLevel < 1) {
+            $this->error("Calculated level {$newRoleLevel} is invalid. Level must be 1 or higher.");
+            return [Command::FAILURE, []];
+        }
+
+        return [$newRoleLevel, $rolesToUpdate];
     }
 
     private function askForRoleName(): string
@@ -271,5 +308,33 @@ class CreateRoleCommand extends Command
         }
 
         return $plainKey;
+    }
+
+    private function updateRoleLevelsInFiles(array $rolesToUpdate): void
+    {
+        foreach ($rolesToUpdate as $role) {
+            $filepath = $role['file'];
+            $oldLevel = $role['old_level'];
+            $newLevel = $role['new_level'];
+
+            $content = File::get($filepath);
+
+            // Replace the old level with the new level in the file content
+            // This regex is specific to the getLevel() method in the stub
+            $content = preg_replace(
+                "/function getLevel\(\)\{[^\}]*{\s*return\s+{$oldLevel};/s",
+                "function getLevel(): int\n    {\n        return {$newLevel};",
+                $content,
+                1 // Only replace the first occurrence
+            );
+
+            if ($content === null) {
+                $this->error("Failed to update level for role: {$role['name']}. Regex replacement failed.");
+                continue;
+            }
+
+            File::put($filepath, $content);
+            $this->info("   - Updated {$role['name']} from level {$oldLevel} to {$newLevel}");
+        }
     }
 }
