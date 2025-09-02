@@ -28,7 +28,7 @@ trait ReceivesRoleAssignments
     {
         return $query->whereHas('roleAssignments', function ($q) use ($assignable) {
             $q->where('assignable_type', $assignable->getMorphClass())
-              ->where('assignable_id', $assignable->getKey());
+                ->where('assignable_id', $assignable->getKey());
         });
     }
 
@@ -51,8 +51,8 @@ trait ReceivesRoleAssignments
     {
         return $query->whereHas('roleAssignments', function ($q) use ($assignable, $role) {
             $q->where('assignable_type', $assignable->getMorphClass())
-              ->where('assignable_id', $assignable->getKey())
-              ->where('role_key', $role::getDbKey());
+                ->where('assignable_id', $assignable->getKey())
+                ->where('role_key', $role::getDbKey());
         });
     }
 

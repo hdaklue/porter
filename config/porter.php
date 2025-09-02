@@ -52,22 +52,13 @@ return [
     | Available Roles
     |--------------------------------------------------------------------------
     |
-    | List all available role classes in your application.
-    | Add custom roles by creating new classes that extend BaseRole.
+    | Porter automatically discovers roles from your Porter directory.
+    | No manual configuration needed - just create role classes that extend BaseRole.
+    |
+    | Directory: config('porter.directory') 
+    | Namespace: config('porter.namespace')
     |
     */
-    'roles' => [
-        // Default roles - created by porter:install command
-        App\Porter\Admin::class,
-        App\Porter\Manager::class,
-        App\Porter\Editor::class,
-        App\Porter\Contributor::class,
-        App\Porter\Viewer::class,
-        App\Porter\Guest::class,
-
-        // Add your custom roles here
-        // App\Porter\ProjectManager::class,
-    ],
 
     /*
     |--------------------------------------------------------------------------

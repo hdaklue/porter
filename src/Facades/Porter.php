@@ -13,13 +13,13 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Illuminate\Support\Collection getAssignedEntitiesByType(\Hdaklue\Porter\Contracts\AssignableEntity $entity, string $type)
  * @method static bool hasRoleOn(\Hdaklue\Porter\Contracts\AssignableEntity $user, \Hdaklue\Porter\Contracts\RoleableEntity $target, string|\Hdaklue\Porter\Contracts\RoleContract $role)
  * @method static bool hasAnyRoleOn(\Hdaklue\Porter\Contracts\AssignableEntity $user, \Hdaklue\Porter\Contracts\RoleableEntity $target)
- * @method static \Illuminate\Support\Collection getParticipants(\Hdaklue\Porter\Contracts\RoleableEntity $target)
- * @method static \Hdaklue\Porter\Models\Role|null getRoleOn(\Hdaklue\Porter\Contracts\AssignableEntity $user, \Hdaklue\Porter\Contracts\RoleableEntity $target)
+ * @method static \Illuminate\Support\Collection getParticipantsHasRole(\Hdaklue\Porter\Contracts\RoleableEntity $target, string|\Hdaklue\Porter\Contracts\RoleContract $role)
+ * @method static string|null getRoleOn(\Hdaklue\Porter\Contracts\AssignableEntity $user, \Hdaklue\Porter\Contracts\RoleableEntity $target)
  * @method static void changeRoleOn(\Hdaklue\Porter\Contracts\AssignableEntity $user, \Hdaklue\Porter\Contracts\RoleableEntity $target, string|\Hdaklue\Porter\Contracts\RoleContract $role)
  * @method static void clearCache(\Hdaklue\Porter\Contracts\RoleableEntity $target)
  * @method static void bulkClearCache(\Illuminate\Support\Collection $targets)
  *
- * @see \Hdaklue\Porter\Services\Role\RoleAssignmentService
+ * @see \Hdaklue\Porter\RoleManager
  */
 class Porter extends Facade
 {

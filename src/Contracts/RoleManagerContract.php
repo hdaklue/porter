@@ -15,7 +15,7 @@ interface RoleManagerContract
      *
      * @throws DomainException If role doesn't exist
      */
-    public function assign(AssignableEntity $user, RoleableEntity $target, string $roleKey): void;
+    public function assign(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): void;
 
     /**
      * Remove all role assignments for a user on a specific target entity.
@@ -27,7 +27,7 @@ interface RoleManagerContract
      *
      * @throws DomainException If new role doesn't exist
      */
-    public function changeRoleOn(AssignableEntity $user, RoleableEntity $target, string $roleKey): void;
+    public function changeRoleOn(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): void;
 
     /**
      * Get all participants (users) who have a specific role on a target entity.
@@ -36,7 +36,7 @@ interface RoleManagerContract
      *
      * @throws DomainException If role doesn't exist
      */
-    public function getParticipantsHasRole(RoleableEntity $target, string $roleKey): Collection;
+    public function getParticipantsHasRole(RoleableEntity $target, string|RoleContract $role): Collection;
 
     /**
      * Gets assigned entities by Entity Type and Entity Keys.
@@ -60,7 +60,7 @@ interface RoleManagerContract
     /**
      * Check if user has specific role on target entity.
      */
-    public function hasRoleOn(AssignableEntity $user, RoleableEntity $target, string $roleKey): bool;
+    public function hasRoleOn(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): bool;
 
     /**
      * Check if user has any role on target entity.

@@ -51,9 +51,7 @@ test('install command works without --roles flag', function () {
     $porterDir = app_path('Porter');
     expect(File::exists($porterDir))->toBeTrue();
 
-    // Check that BaseRole.php was created
-    $baseRoleFile = "{$porterDir}/BaseRole.php";
-    expect(File::exists($baseRoleFile))->toBeTrue();
+    // Note: BaseRole.php is not created - users should extend from package BaseRole directly
 
     // Check that default roles were NOT created
     expect(File::exists("{$porterDir}/Admin.php"))->toBeFalse();
@@ -75,9 +73,7 @@ test('install command creates default roles with --roles flag', function () {
     $porterDir = app_path('Porter');
     expect(File::exists($porterDir))->toBeTrue();
 
-    // Check that BaseRole.php was created
-    $baseRoleFile = "{$porterDir}/BaseRole.php";
-    expect(File::exists($baseRoleFile))->toBeTrue();
+    // Note: BaseRole.php is not created - users should extend from package BaseRole directly
 
     // Check that default roles were created
     $defaultRoles = ['Admin', 'Manager', 'Editor', 'Contributor', 'Viewer', 'Guest'];
@@ -114,7 +110,7 @@ test('install command respects --force flag for existing files', function () {
     expect(File::get("{$porterDir}/Admin.php"))->toContain('class Admin extends BaseRole');
 });
 
-test('install command creates BaseRole with correct namespace', function () {
+test('install command does not create BaseRole - users extend from package directly', function () {
     // Set environment to testing
     app()->detectEnvironment(fn () => 'testing');
 
@@ -124,12 +120,9 @@ test('install command creates BaseRole with correct namespace', function () {
 
     $porterDir = app_path('Porter');
     $baseRoleFile = "{$porterDir}/BaseRole.php";
-    $content = File::get($baseRoleFile);
-
-    expect($content)
-        ->toContain('namespace App\\Porter;')
-        ->toContain('use Hdaklue\\Porter\\Roles\\BaseRole as PorterBaseRole;')
-        ->toContain('abstract class BaseRole extends PorterBaseRole');
+    
+    // BaseRole.php should NOT be created - users should extend from package BaseRole directly
+    expect(File::exists($baseRoleFile))->toBeFalse();
 });
 
 test('install command shows different help based on --roles flag', function () {

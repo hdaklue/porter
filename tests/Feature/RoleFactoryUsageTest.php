@@ -3,7 +3,12 @@
 declare(strict_types=1);
 
 use Hdaklue\Porter\RoleFactory;
+use Hdaklue\Porter\Validators\RoleValidator;
 use Illuminate\Support\Facades\File;
+
+beforeEach(function () {
+    RoleValidator::clearCache();
+});
 
 afterEach(function () {
     // Clean up created role files

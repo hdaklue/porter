@@ -60,6 +60,8 @@ composer.phar
 /dist
 /.phpunit.cache
 
+RoleValidator.php.backup
+
 # AI Assistant Instructions
 CLAUDE.md
 GEMINI.md

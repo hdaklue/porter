@@ -133,8 +133,8 @@ test('Roster model forAssignable scope works correctly', function () {
 
     expect($user1Assignments)->toHaveCount(1);
     expect($user2Assignments)->toHaveCount(1);
-    expect($user1Assignments->first()->assignable_id)->toBe((string)$user1->id);
-    expect($user2Assignments->first()->assignable_id)->toBe((string)$user2->id);
+    expect($user1Assignments->first()->assignable_id)->toBe((string) $user1->id);
+    expect($user2Assignments->first()->assignable_id)->toBe((string) $user2->id);
 });
 
 test('Roster model forRoleable scope works correctly', function () {
@@ -165,8 +165,8 @@ test('Roster model forRoleable scope works correctly', function () {
 
     expect($project1Assignments)->toHaveCount(1);
     expect($project2Assignments)->toHaveCount(1);
-    expect($project1Assignments->first()->roleable_id)->toBe((string)$project1->id);
-    expect($project2Assignments->first()->roleable_id)->toBe((string)$project2->id);
+    expect($project1Assignments->first()->roleable_id)->toBe((string) $project1->id);
+    expect($project2Assignments->first()->roleable_id)->toBe((string) $project2->id);
 });
 
 test('Roster model withRole scope works correctly', function () {
@@ -246,7 +246,7 @@ test('Roster model description attribute works correctly', function () {
     ]);
 
     $description = $roster->description;
-    
+
     expect($description)->toContain('TestUser');
     expect($description)->toContain("#{$user->id}");
     expect($description)->toContain('TestAdmin');
@@ -285,7 +285,7 @@ test('Roster model scopes can be chained', function () {
         ->get();
 
     expect($specificAssignment)->toHaveCount(1);
-    expect($specificAssignment->first()->assignable_id)->toBe((string)$user1->id);
-    expect($specificAssignment->first()->roleable_id)->toBe((string)$project->id);
+    expect($specificAssignment->first()->assignable_id)->toBe((string) $user1->id);
+    expect($specificAssignment->first()->roleable_id)->toBe((string) $project->id);
     expect($specificAssignment->first()->role_key)->toBe($admin::getDbKey());
 });

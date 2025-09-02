@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter\Console\Commands;
 
+use Hdaklue\Porter\Validators\RoleValidator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -111,8 +112,7 @@ class InstallCommand extends Command
             $this->info("📁 Porter directory already exists: {$porterDir}");
         }
 
-        // Always create BaseRole.php in the Porter directory
-        $this->createBaseRoleFile($porterDir);
+        // Note: We don't create BaseRole.php - users should extend from the package BaseRole directly
     }
 
     private function createDefaultRoles(): void
@@ -186,6 +186,9 @@ class InstallCommand extends Command
         File::put($filepath, $content);
         $this->info("✅ Created role: {$name} (Level {$level})");
         $this->info('   🔑 Key: '.$this->generateRoleKey($name));
+        
+        // Clear cache since we've created a new role file
+        RoleValidator::clearCache();
     }
 
     private function getRoleStub(): string
@@ -205,46 +208,4 @@ class InstallCommand extends Command
         return $plainKey;
     }
 
-    private function createBaseRoleFile(string $directory): void
-    {
-        $baseRoleFile = "{$directory}/BaseRole.php";
-
-        if (File::exists($baseRoleFile) && ! $this->option('force')) {
-            $this->info('📄 BaseRole.php already exists');
-
-            return;
-        }
-
-        $namespace = config('porter.namespace', 'App\\Porter');
-        $baseRoleStub = $this->getBaseRoleStub();
-        $content = str_replace('{{namespace}}', $namespace, $baseRoleStub);
-
-        File::put($baseRoleFile, $content);
-        $this->info('✅ Created BaseRole.php in Porter directory');
-    }
-
-    private function getBaseRoleStub(): string
-    {
-        return <<<'STUB'
-<?php
-
-declare(strict_types=1);
-
-namespace {{namespace}};
-
-use Hdaklue\Porter\Roles\BaseRole as PorterBaseRole;
-
-/**
- * Base class for all application roles.
- * 
- * This class extends Porter's BaseRole and serves as the foundation
- * for all role classes in your application. You can add application-specific
- * methods here that all roles should inherit.
- */
-abstract class BaseRole extends PorterBaseRole
-{
-    // Add application-specific role methods here
-}
-STUB;
-    }
 }

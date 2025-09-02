@@ -7,11 +7,13 @@ namespace Hdaklue\Porter;
 use DomainException;
 use Hdaklue\Porter\Contracts\AssignableEntity;
 use Hdaklue\Porter\Contracts\RoleableEntity;
+use Hdaklue\Porter\Contracts\RoleContract;
 use Hdaklue\Porter\Contracts\RoleManagerContract;
 use Hdaklue\Porter\Events\RoleAssigned;
 use Hdaklue\Porter\Events\RoleChanged;
 use Hdaklue\Porter\Events\RoleRemoved;
 use Hdaklue\Porter\Models\Roster;
+use Hdaklue\Porter\Roles\BaseRole;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -40,9 +42,20 @@ final class RoleManager implements RoleManagerContract
      *
      * @throws DomainException If role doesn't exist
      */
-    public function assign(AssignableEntity $user, RoleableEntity $target, string $roleKey): void
+    public function assign(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): void
     {
-        $this->ensureRoleExists($roleKey);
+        // Handle both string and RoleContract inputs
+        if (is_string($role)) {
+            $this->ensureRoleExists($role);
+            // Try role key first, then role name
+            try {
+                $roleInstance = RoleFactory::make($role);
+            } catch (\InvalidArgumentException $e) {
+                $roleInstance = BaseRole::make($role);
+            }
+        } else {
+            $roleInstance = $role;
+        }
 
         $assignmentStrategy = config('porter.security.assignment_strategy', 'replace');
 
@@ -52,8 +65,7 @@ final class RoleManager implements RoleManagerContract
         }
 
         // Get encrypted key for storage
-        $role = RoleFactory::make($roleKey);
-        $encryptedKey = $role::getDbKey();
+        $encryptedKey = $roleInstance::getDbKey();
 
         // For 'add' strategy, firstOrCreate will handle duplicates. For 'replace', it will create the new one.
         $assignment = Roster::firstOrCreate([
@@ -66,7 +78,7 @@ final class RoleManager implements RoleManagerContract
 
         // Dispatch event only if this is a new assignment
         if ($assignment->wasRecentlyCreated) {
-            RoleAssigned::dispatch($user, $target, $role);
+            RoleAssigned::dispatch($user, $target, $roleInstance);
         }
 
         $this->clearCache($target);
@@ -116,11 +128,16 @@ final class RoleManager implements RoleManagerContract
      *
      * @throws DomainException If new role doesn't exist
      */
-    public function changeRoleOn(AssignableEntity $user, RoleableEntity $target, string $roleKey): void
+    public function changeRoleOn(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): void
     {
-        $this->ensureRoleExists($roleKey);
+        // Handle both string and RoleContract inputs
+        if (is_string($role)) {
+            $this->ensureRoleExists($role);
+            $newRole = RoleFactory::make($role);
+        } else {
+            $newRole = $role;
+        }
 
-        $newRole = RoleFactory::make($roleKey);
         $newEncryptedKey = $newRole::getDbKey();
 
         $model = Roster::where([
@@ -152,17 +169,27 @@ final class RoleManager implements RoleManagerContract
      * Get all participants (users) who have a specific role on a target entity.
      *
      * @param  RoleableEntity  $target  The entity to get participants for
-     * @param  string  $roleKey  The specific role to filter by
+     * @param  string|RoleContract  $role  The specific role to filter by
      * @return Collection<int, AssignableEntity> Collection of users with the role
      *
      * @throws DomainException If role doesn't exist
      */
-    public function getParticipantsHasRole(RoleableEntity $target, string $roleKey): Collection
+    public function getParticipantsHasRole(RoleableEntity $target, string|RoleContract $role): Collection
     {
-        $this->ensureRoleExists($roleKey);
+        // Handle both string and RoleContract inputs
+        if (is_string($role)) {
+            $this->ensureRoleExists($role);
+            // Try role key first, then role name
+            try {
+                $roleInstance = RoleFactory::make($role);
+            } catch (\InvalidArgumentException $e) {
+                $roleInstance = BaseRole::make($role);
+            }
+        } else {
+            $roleInstance = $role;
+        }
 
-        $role = RoleFactory::make($roleKey);
-        $encryptedKey = $role::getDbKey();
+        $encryptedKey = $roleInstance::getDbKey();
 
         return Roster::where([
             'roleable_type' => $target->getMorphClass(),
@@ -244,14 +271,23 @@ final class RoleManager implements RoleManagerContract
     /**
      * Check if user has specific role on target entity.
      */
-    public function hasRoleOn(AssignableEntity $user, RoleableEntity $target, string $roleKey): bool
+    public function hasRoleOn(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): bool
     {
-        $role = RoleFactory::tryMake($roleKey);
-        if (! $role) {
-            return false;
+        // Handle both string and RoleContract inputs
+        if (is_string($role)) {
+            // Try role key first, then role name
+            $roleInstance = RoleFactory::tryMake($role);
+            if (! $roleInstance) {
+                $roleInstance = BaseRole::tryMake($role);
+            }
+            if (! $roleInstance) {
+                return false;
+            }
+        } else {
+            $roleInstance = $role;
         }
 
-        $encryptedKey = $role::getDbKey();
+        $encryptedKey = $roleInstance::getDbKey();
 
         return Roster::where([
             'assignable_id' => $user->getKey(),
@@ -301,12 +337,18 @@ final class RoleManager implements RoleManagerContract
      *
      * @throws DomainException if the role does not exist.
      */
-    public function ensureRoleExists(string $roleKey): void
+    public function ensureRoleExists(string $roleIdentifier): void
     {
         try {
-            RoleFactory::make($roleKey);
+            // First try as role key (for backwards compatibility)
+            RoleFactory::make($roleIdentifier);
         } catch (\InvalidArgumentException $e) {
-            throw new DomainException("Role '{$roleKey}' does not exist.", 0, $e);
+            // If that fails, try as role name
+            try {
+                BaseRole::make($roleIdentifier);
+            } catch (\InvalidArgumentException $e2) {
+                throw new DomainException("Role '{$roleIdentifier}' does not exist.", 0, $e2);
+            }
         }
     }
 

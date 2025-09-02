@@ -57,15 +57,26 @@ class DoctorCommand extends Command
         }
 
         // Check required config keys
-        $requiredKeys = ['roles', 'table_names', 'cache', 'security'];
+        $requiredKeys = ['table_names', 'cache', 'security', 'directory', 'namespace'];
         foreach ($requiredKeys as $key) {
             if (! isset($config[$key])) {
                 $this->warnings[] = "Missing config key: porter.{$key}";
             }
         }
 
-        if (empty($config['roles'])) {
-            $this->warnings[] = 'No roles configured in porter.roles array.';
+        // Check if Porter directory exists and has roles
+        $porterDir = config('porter.directory');
+        if (! is_dir($porterDir)) {
+            $this->warnings[] = "Porter directory does not exist: {$porterDir}";
+        } else {
+            $roleFiles = glob("{$porterDir}/*.php");
+            $roleFiles = array_filter($roleFiles, function ($file) {
+                return basename($file) !== 'BaseRole.php';
+            });
+            
+            if (empty($roleFiles)) {
+                $this->warnings[] = 'No role files found in Porter directory. Run "php artisan porter:install --roles" or "php artisan porter:create" to create roles.';
+            }
         }
 
         $this->info('✅ Configuration checked');
@@ -231,36 +242,40 @@ class DoctorCommand extends Command
 
     private function checkRoleConfiguration(): void
     {
-        $this->info('⚙️ Checking role configuration alignment...');
+        $this->info('⚙️ Checking role files...');
 
-        $configRoles = config('porter.roles', []);
-        $porterDir = app_path('Porter');
+        $porterDir = config('porter.directory', app_path('Porter'));
 
         if (! File::exists($porterDir)) {
+            $this->warnings[] = "Porter directory does not exist: {$porterDir}";
             return;
         }
 
         $fileRoles = File::glob("{$porterDir}/*.php");
-        $fileRoleNames = array_map(function ($file) {
-            return 'App\\Porter\\'.pathinfo($file, PATHINFO_FILENAME);
-        }, $fileRoles);
+        $fileRoles = array_filter($fileRoles, function ($file) {
+            return basename($file) !== 'BaseRole.php';
+        });
 
-        // Check if config roles exist as files
-        foreach ($configRoles as $configRole) {
-            if (! in_array($configRole, $fileRoleNames)) {
-                $this->warnings[] = "Role configured but file missing: {$configRole}";
+        if (empty($fileRoles)) {
+            $this->warnings[] = 'No role files found. Create roles with "php artisan porter:create".';
+            return;
+        }
+
+        // Validate role files
+        foreach ($fileRoles as $roleFile) {
+            $content = File::get($roleFile);
+            $className = basename($roleFile, '.php');
+            
+            if (!str_contains($content, 'extends BaseRole')) {
+                $this->warnings[] = "Role {$className} does not extend BaseRole";
+            }
+            
+            if (!str_contains($content, 'function getName(') || !str_contains($content, 'function getLevel(')) {
+                $this->warnings[] = "Role {$className} missing required getName() or getLevel() methods";
             }
         }
 
-        // Check if file roles are configured
-        foreach ($fileRoleNames as $fileRole) {
-            if (! in_array($fileRole, $configRoles)) {
-                $this->suggestions[] = "Role file exists but not configured: {$fileRole}";
-                $this->suggestions[] = "Add '{$fileRole}' to your config/porter.php roles array";
-            }
-        }
-
-        $this->info('✅ Role configuration checked');
+        $this->info('✅ Role files checked');
     }
 
     private function displayResults(): void

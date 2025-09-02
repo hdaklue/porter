@@ -34,14 +34,14 @@ test('RoleManager can assign and check roles with database', function () {
     $project = TestProject::create(['name' => 'Test Project', 'description' => 'A test project']);
 
     // Initially should not have role
-    expect($this->roleManager->hasRoleOn($user, $project, 'test_admin'))->toBeFalse();
+    expect($this->roleManager->hasRoleOn($user, $project, 'TestAdmin'))->toBeFalse();
     expect($this->roleManager->hasAnyRoleOn($user, $project))->toBeFalse();
 
     // Assign role
-    $this->roleManager->assign($user, $project, 'test_admin');
+    $this->roleManager->assign($user, $project, 'TestAdmin');
 
     // Should now have the role
-    expect($this->roleManager->hasRoleOn($user, $project, 'test_admin'))->toBeTrue();
+    expect($this->roleManager->hasRoleOn($user, $project, 'TestAdmin'))->toBeTrue();
     expect($this->roleManager->hasAnyRoleOn($user, $project))->toBeTrue();
 
     // Should have one assignment in database

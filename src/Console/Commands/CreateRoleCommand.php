@@ -17,6 +17,7 @@ class CreateRoleCommand extends Command
 
     public function handle(): int
     {
+        RoleValidator::clearCache(); // Ensure a clean cache for the command execution
         $this->info('🎭 Creating a new Porter role...');
         $this->newLine();
 
@@ -347,6 +348,9 @@ class CreateRoleCommand extends Command
         );
 
         File::put($filepath, $content);
+        
+        // Clear cache since we've modified role files
+        RoleValidator::clearCache();
     }
 
     private function getRoleStub(): string
@@ -390,7 +394,7 @@ class CreateRoleCommand extends Command
             // Replace the old level with the new level in the file content
             // This regex is specific to the getLevel() method in the stub
             $content = preg_replace(
-                "/function getLevel\(\):\s*int[^{]*{\s*return\s+{$oldLevel};/s",
+                "/function getLevel\(\):\s*int\s*{\s*return\s+{$oldLevel};/s",
                 "function getLevel(): int\n    {\n        return {$newLevel};",
                 $content,
                 1 // Only replace the first occurrence
@@ -409,6 +413,9 @@ class CreateRoleCommand extends Command
 
             File::put($filepath, $content);
             $this->info("   - Updated {$role['name']} from level {$oldLevel} to {$newLevel}");
+            
+            // Clear cache after each role update
+            RoleValidator::clearCache();
         }
     }
 }

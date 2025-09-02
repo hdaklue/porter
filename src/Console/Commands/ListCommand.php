@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter\Console\Commands;
 
+use Hdaklue\Porter\RoleFactory;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -112,9 +113,8 @@ class ListCommand extends Command
         // Check if properly extends BaseRole
         $extendsBase = str_contains($content, 'extends BaseRole');
 
-        // Check if configured in config/porter.php
-        $configuredRoles = config('porter.roles', []);
-        $isConfigured = in_array($className, $configuredRoles);
+        // Check if discoverable by RoleFactory
+        $isDiscoverable = RoleFactory::existsInPorterDirectory(class_basename($className));
 
         // Validate file structure
         $hasRequiredMethods = str_contains($content, 'function getName(') &&
@@ -132,7 +132,7 @@ class ListCommand extends Command
             'description' => $description ?: 'No description provided',
             'label' => $label ?: ($description ?: 'No label provided'),
             'extends_base' => $extendsBase,
-            'configured' => $isConfigured,
+            'discoverable' => $isDiscoverable,
             'valid' => $hasRequiredMethods && $extendsBase,
             'filesize' => $filesize,
             'modified' => date('Y-m-d H:i:s', $lastModified),

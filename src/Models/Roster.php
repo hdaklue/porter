@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * Porter role assignment model - tracks which entities have which roles on which targets.
- * 
+ *
  * @property int $id
  * @property string $assignable_type
  * @property string $assignable_id
@@ -102,7 +102,6 @@ final class Roster extends Model
         throw new Exception('Unable to resolve role_key');
     }
 
-
     /**
      * Scope to find role assignments for a specific assignable entity.
      */
@@ -137,9 +136,9 @@ final class Roster extends Model
     public function scopeWithRoleName(Builder $query, string $roleName): Builder
     {
         $role = RoleFactory::make($roleName);
+
         return $query->where('role_key', $role::getDbKey());
     }
-
 
     /**
      * Get a human-readable description of this assignment.
@@ -149,7 +148,7 @@ final class Roster extends Model
         $assignableName = class_basename($this->assignable_type);
         $roleableName = class_basename($this->roleable_type);
         $role = $this->role;
-        
+
         return "{$assignableName} #{$this->assignable_id} has role '{$role->getName()}' on {$roleableName} #{$this->roleable_id}";
     }
 }

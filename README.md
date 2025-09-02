@@ -4,7 +4,7 @@
 
 A lightweight, blazing-fast Laravel role-based access control package that treats roles as what they truly are: **domain business logic**, not database abstractions. Built for developers who value simplicity, performance, and clean architecture.
 
-> "We must ship."
+> "Current RBAC were made for CMSs."
 
 --- 
 
@@ -46,6 +46,23 @@ Most RBAC packages are:
 ### Porter's Approach
 
 Porter treats roles as **first-class business entities** with their own focused classes, not generic database records.
+
+### Porter vs Database-Heavy Approaches
+
+Common question: *"Why not use traditional database-based RBAC?"*
+
+| Feature | Database-Heavy RBAC | Porter |
+|---------|---------------------|--------|
+| **Role Architecture** | Database records | Individual PHP classes |
+| **Permission Storage** | Database tables | PHP class methods |
+| **Entity Context** | Global permissions | Entity-specific roles |
+| **Type Safety** | String-based | Full PHP type safety |
+| **Codebase Size** | Many classes/tables | Minimal architecture |
+| **IDE Support** | Limited | Full autocomplete |
+| **Performance** | Multiple DB queries | Single table, memory checks |
+
+**Use Database RBAC if:** You need complex global permission matrices  
+**Use Porter if:** You need entity-specific roles with type safety and simplicity
 
 --- 
 
@@ -94,6 +111,7 @@ Ready-to-use API endpoints for role management.
 - 🔗 Third-party service connectivity
 - ⚡ Frontend SPA support
 - 📊 External dashboard integration
+
 
 ### 🗳️ **Help Me Decide!**
 
@@ -471,56 +489,27 @@ PORTER_AUTO_KEYS=false        # Manual key definition required
 
 ## Laravel Integration
 
-### Policy Classes
+Porter integrates seamlessly with Laravel's authorization system - Gates, Policies, Blade directives, and middleware all work naturally with Porter's entity-specific roles.
 
 ```php
-class ProjectPolicy
+// In your Policy
+public function update(User $user, Project $project)
 {
-    public function view(User $user, Project $project)
-    {
-        return $user->hasAnyRoleOn($project);
-    }
-
-    public function update(User $user, Project $project)
-    {
-        return $user->hasRoleOn($project, 'admin')
-            || $user->hasRoleOn($project, 'manager');
-    }
-
-    public function delete(User $user, Project $project)
-    {
-        return $user->hasRoleOn($project, 'admin');
-    }
-
-    public function invite(User $user, Project $project)
-    {
-        $role = Porter::getRoleOn($user, $project);
-        return $role && $role->getLevel() >= 5; // Manager level or higher
-    }
-}
-```
-
-### Middleware
-
-```php
-class RequireRoleOnEntity
-{
-    public function handle(Request $request, Closure $next, string $role)
-    {
-        $entity = $request->route('project'); // or any entity
-
-        if (!$request->user()->hasRoleOn($entity, $role)) {
-            abort(403, 'Insufficient role permissions');
-        }
-
-        return $next($request);
-    }
+    return $user->hasRoleOn($project, 'admin');
 }
 
-// Usage in routes
-Route::put('/projects/{project}', [ProjectController::class, 'update'])
-    ->middleware('role.on.entity:admin');
+// In your Controller
+$this->authorize('update', $project);
+
+// In your Blade templates
+@can('update', $project)
+    <button>Edit Project</button>
+@endcan
 ```
+
+**🔗 [Complete Laravel Integration Guide →](docs/laravel-integration.md)**
+
+Learn about Policies, Middleware, Blade directives, Form Requests, API Resources, Event Listeners, and Testing with Porter.
 
 --- 
 
@@ -593,11 +582,11 @@ CREATE TABLE roaster (
 ```
 
 **Performance Benefits:**
-- 🚀 **85% fewer database queries** for role checks
-- 🏃 **60% faster role assignments** with simple operations
-- 💾 **90% smaller codebase** with focused architecture
-- 🧠 **Minimal memory usage** with individual role classes
-- ⚡ **Zero foreign key overhead** with polymorphic relationships
+- 🚀 **Fewer database queries** - single table operations
+- 🏃 **Fast role assignments** - simple database operations  
+- 💾 **Minimal codebase** - focused architecture with 8 core classes
+- 🧠 **Efficient memory usage** - individual role classes
+- ⚡ **No foreign key overhead** - polymorphic relationships
 
 --- 
 
