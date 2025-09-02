@@ -10,15 +10,35 @@ use Illuminate\Support\Str;
 
 class CreateRoleCommand extends Command
 {
-    protected $signature = 'porter:create {name? : The role name} {--level= : The role level (1-10)} {--description= : The role description}';
+    protected $signature = 'porter:create {name? : The role name} {--level= : The role level (1-10)} {--description= : The role description} {--lower= : Create a role with a level lower than the specified role} {--higher= : Create a role with a level higher than the specified role}';
 
     protected $description = 'Create a new Porter role class';
 
     public function handle(): int
     {
+        $lower = $this->option('lower');
+        $higher = $this->option('higher');
+
+        if ($lower && $higher) {
+            $this->error('The --lower and --higher options are mutually exclusive.');
+            return Command::FAILURE;
+        }
+
         $name = $this->argument('name') ?: $this->askForRoleName();
         $level = $this->option('level') ? (int) $this->option('level') : $this->askForRoleLevel();
         $description = $this->option('description') ?: $this->askForRoleDescription($name);
+
+        if ($lower || $higher) {
+            $calculatedLevel = $this->handleHierarchyOptions($lower, $higher);
+            if ($calculatedLevel === Command::FAILURE) {
+                return Command::FAILURE;
+            }
+            $level = $calculatedLevel;
+            // If --level was also provided, ignore it and warn the user
+            if ($this->option('level')) {
+                $this->warn('The --level option is ignored when --lower or --higher is used.');
+            }
+        }
 
         // Validate inputs
         if (! $this->validateInputs($name, $level, $description)) {
@@ -45,6 +65,43 @@ class CreateRoleCommand extends Command
         $this->info("2. Run 'php artisan porter:doctor' to validate your setup");
 
         return Command::SUCCESS;
+    }
+
+    private function handleHierarchyOptions(?string $lower, ?string $higher, ?int &$level): void
+    {
+        $existingRoles = $this->getExistingRoles(app_path('Porter'));
+        $roleNames = array_keys($existingRoles['names']);
+
+        if (empty($roleNames)) {
+            $this->error('There are no existing roles to reference.');
+            return;
+        }
+
+        $targetRoleName = $this->choice('Which role do you want to reference?', $roleNames);
+        $targetRoleLevel = null;
+
+        foreach ($existingRoles['levels'] as $l => $n) {
+            if ($n === $targetRoleName) {
+                $targetRoleLevel = $l;
+                break;
+            }
+        }
+
+        if ($targetRoleLevel === null) {
+            $this->error("Could not determine the level of the selected role: {$targetRoleName}");
+            return;
+        }
+
+        if ($lower) {
+            $level = $targetRoleLevel - 1;
+            $this->info("The new role will have level {$level} (lower than {$targetRoleName})");
+        } else {
+            $level = $targetRoleLevel + 1;
+            $this->info("The new role will have level {$level} (higher than {$targetRoleName})");
+        }
+
+        // Set the level for the main handle method
+        $this->level = $level;
     }
 
     private function askForRoleName(): string
@@ -169,7 +226,7 @@ class CreateRoleCommand extends Command
             $filename = pathinfo($file, PATHINFO_FILENAME);
 
             // Extract level from file content
-            if (preg_match('/return\s+(\d+);.*getLevel/s', $content, $matches)) {
+            if (preg_match("/function getLevel\(\)[^{]*{\s*return\s+(\d+);/s", $content, $matches)) {
                 $level = (int) $matches[1];
                 $roles['names'][$filename] = $file;
                 $roles['levels'][$level] = $filename;
