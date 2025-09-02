@@ -21,6 +21,7 @@ class CreateRoleCommand extends Command
 
         if ($lower && $higher) {
             $this->error('The --lower and --higher options are mutually exclusive.');
+
             return Command::FAILURE;
         }
 
@@ -42,7 +43,7 @@ class CreateRoleCommand extends Command
             }
 
             // Update existing role files
-            if (!empty($rolesToUpdate)) {
+            if (! empty($rolesToUpdate)) {
                 $this->info('Updating levels of existing roles...');
                 $this->updateRoleLevelsInFiles($rolesToUpdate);
             }
@@ -85,6 +86,7 @@ class CreateRoleCommand extends Command
 
         if (empty($roleNames)) {
             $this->error('There are no existing roles to reference.');
+
             return [Command::FAILURE, []]; // Return failure and empty array
         }
 
@@ -100,6 +102,7 @@ class CreateRoleCommand extends Command
 
         if ($targetRoleLevel === null) {
             $this->error("Could not determine the level of the selected role: {$targetRoleName}");
+
             return [Command::FAILURE, []]; // Return failure and empty array
         }
 
@@ -135,6 +138,7 @@ class CreateRoleCommand extends Command
         // Check for level constraints (should not be 0 or less, already handled for lower=1)
         if ($newRoleLevel < 1) {
             $this->error("Calculated level {$newRoleLevel} is invalid. Level must be 1 or higher.");
+
             return [Command::FAILURE, []];
         }
 
@@ -171,7 +175,6 @@ class CreateRoleCommand extends Command
                 $this->error('Role level must be a number.');
                 continue;
             }
-
             $level = (int) $level;
 
             if ($level < 1 || $level > 10) {
