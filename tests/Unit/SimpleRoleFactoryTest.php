@@ -26,7 +26,7 @@ test('can create role instance from different plain keys', function () {
 });
 
 test('fails to create role with invalid key', function () {
-    expect(fn() => RoleFactory::make('invalid_role_key'))
+    expect(fn () => RoleFactory::make('invalid_role_key'))
         ->toThrow(InvalidArgumentException::class, "Role 'invalid_role_key' does not exist.");
 });
 
@@ -53,7 +53,7 @@ test('can create role from encrypted database key', function () {
     // Get encrypted key from a role instance
     $admin = new TestAdmin();
     $encryptedKey = $admin::getDbKey();
-    
+
     $role = RoleFactory::tryMake($encryptedKey);
 
     expect($role)->toBeInstanceOf(TestAdmin::class);
@@ -67,7 +67,7 @@ test('gets all available roles with keys', function () {
     expect($rolesWithKeys)->toHaveKey('test_admin');
     expect($rolesWithKeys)->toHaveKey('test_editor');
     expect($rolesWithKeys)->toHaveKey('test_viewer');
-    
+
     expect($rolesWithKeys['test_admin'])->toBeInstanceOf(TestAdmin::class);
     expect($rolesWithKeys['test_editor'])->toBeInstanceOf(TestEditor::class);
     expect($rolesWithKeys['test_viewer'])->toBeInstanceOf(TestViewer::class);

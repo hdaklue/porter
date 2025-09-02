@@ -6,7 +6,7 @@ namespace Hdaklue\Porter\Events;
 
 use Hdaklue\Porter\Contracts\AssignableEntity;
 use Hdaklue\Porter\Contracts\RoleableEntity;
-use Hdaklue\Porter\Contracts\RoleInterface;
+use Hdaklue\Porter\Contracts\RoleContract;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -20,7 +20,7 @@ class RoleRemoved
     public function __construct(
         public readonly AssignableEntity $assignable,
         public readonly RoleableEntity $roleable,
-        public readonly RoleInterface $role
+        public readonly RoleContract $role
     ) {}
 
     /**

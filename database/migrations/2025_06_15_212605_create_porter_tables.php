@@ -19,11 +19,11 @@ return new class() extends Migration
         Schema::connection($connection)
             ->create(config('porter.table_names.roaster'), static function (Blueprint $table) use ($idStrategy) {
                 $table->id();
-                
+
                 // Model type columns (always strings for class names)
                 $table->string('assignable_type'); // assignable model type
                 $table->string('roleable_type');   // Entity type (Project, Organization, etc.)
-                
+
                 // ID columns - type depends on configured strategy
                 match ($idStrategy) {
                     'integer' => [
@@ -39,7 +39,7 @@ return new class() extends Migration
                         $table->string('roleable_id'),               // For ULID/string IDs
                     ]
                 };
-                
+
                 $table->string('role_key');     // Role key ('admin', 'manager', etc.)
                 $table->timestamps();
 

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Hdaklue\Porter\RoleManager;
-use Hdaklue\Porter\Tests\Fixtures\TestUser;
-use Hdaklue\Porter\Tests\Fixtures\TestProject;
 use Hdaklue\Porter\Models\Roster;
+use Hdaklue\Porter\RoleManager;
+use Hdaklue\Porter\Tests\Fixtures\TestProject;
+use Hdaklue\Porter\Tests\Fixtures\TestUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -49,9 +49,9 @@ test('RoleManager can assign and check roles with database', function () {
 
     $assignment = Roster::first();
     expect($assignment->assignable_type)->toBe(TestUser::class);
-    expect($assignment->assignable_id)->toBe((string)$user->id);
+    expect($assignment->assignable_id)->toBe((string) $user->id);
     expect($assignment->roleable_type)->toBe(TestProject::class);
-    expect($assignment->roleable_id)->toBe((string)$project->id);
+    expect($assignment->roleable_id)->toBe((string) $project->id);
 });
 
 test('RoleManager prevents duplicate assignments', function () {
@@ -91,10 +91,10 @@ test('RoleManager can change user roles', function () {
 
     // Change to different role
     $this->roleManager->changeRoleOn($user, $project, 'test_admin');
-    
+
     expect($this->roleManager->hasRoleOn($user, $project, 'test_editor'))->toBeFalse();
     expect($this->roleManager->hasRoleOn($user, $project, 'test_admin'))->toBeTrue();
-    
+
     // Should still only have one assignment record
     expect(Roster::count())->toBe(1);
 });
@@ -103,6 +103,6 @@ test('RoleManager fails when assigning non-existent role', function () {
     $user = TestUser::create(['name' => 'John Doe', 'email' => 'john@example.com']);
     $project = TestProject::create(['name' => 'Test Project']);
 
-    expect(fn() => $this->roleManager->assign($user, $project, 'nonexistent_role'))
+    expect(fn () => $this->roleManager->assign($user, $project, 'nonexistent_role'))
         ->toThrow(DomainException::class, "Role 'nonexistent_role' does not exist.");
 });

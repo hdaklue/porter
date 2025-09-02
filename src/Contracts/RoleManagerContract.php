@@ -33,6 +33,7 @@ interface RoleManagerContract
      * Get all participants (users) who have a specific role on a target entity.
      *
      * @return Collection<int, AssignableEntity> Collection of users with the role
+     *
      * @throws DomainException If role doesn't exist
      */
     public function getParticipantsHasRole(RoleableEntity $target, string $roleKey): Collection;
@@ -91,7 +92,7 @@ interface RoleManagerContract
     /**
      * Bulk clear cache for multiple targets.
      *
-     * @param Collection<RoleableEntity> $targets
+     * @param  Collection<RoleableEntity>  $targets
      */
     public function bulkClearCache(Collection $targets): void;
 }

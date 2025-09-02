@@ -9,9 +9,10 @@ use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
-class TestProject extends Model implements RoleableEntity, Arrayable
+class TestProject extends Model implements Arrayable, RoleableEntity
 {
     protected $table = 'test_projects';
+
     protected $fillable = ['name', 'description'];
 
     protected $casts = [

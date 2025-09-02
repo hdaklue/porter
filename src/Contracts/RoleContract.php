@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter\Contracts;
 
-interface RoleInterface
+interface RoleContract
 {
     /**
      * Get the role name.
@@ -30,27 +30,27 @@ interface RoleInterface
     /**
      * Check if this role is higher than another role.
      */
-    public function isHigherThan(RoleInterface $other): bool;
+    public function isHigherThan(RoleContract $other): bool;
 
     /**
      * Check if this role is lower than another role.
      */
-    public function isLowerThan(RoleInterface $other): bool;
+    public function isLowerThan(RoleContract $other): bool;
 
     /**
      * Check if this role is lower than or equal to another role.
      */
-    public function isLowerThanOrEqual(RoleInterface $other): bool;
+    public function isLowerThanOrEqual(RoleContract $other): bool;
 
     /**
      * Check if this role is equal to another role.
      */
-    public function isEqualTo(RoleInterface $other): bool;
+    public function isEqualTo(RoleContract $other): bool;
 
     /**
      * Check if this role is at least the same level as another.
      */
-    public function isAtLeast(RoleInterface $other): bool;
+    public function isAtLeast(RoleContract $other): bool;
 
     /**
      * Create role instance from name.

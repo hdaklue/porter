@@ -21,6 +21,7 @@ TODO.md
 *.swo
 *~
 .claude/
+TEST_STAUS.md
 
 # OS
 .DS_Store

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Hdaklue\Porter\Concerns;
 
 use Hdaklue\Porter\Contracts\RoleableEntity;
-use Hdaklue\Porter\Contracts\RoleInterface;
+use Hdaklue\Porter\Contracts\RoleContract;
 use Hdaklue\Porter\Facades\Porter;
 use Hdaklue\Porter\Models\Roster;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -31,9 +31,9 @@ trait CanBeAssignedToEntity
     /**
      * hasAssignmentOn.
      */
-    public function hasAssignmentOn(RoleableEntity $target, string|RoleInterface $roleName): bool
+    public function hasAssignmentOn(RoleableEntity $target, RoleContract $role): bool
     {
-        return Porter::hasRoleOn($this, $target, $roleName);
+        return Porter::hasRoleOn($this, $target, $role->getName());
 
     }
 
@@ -49,7 +49,7 @@ trait CanBeAssignedToEntity
     /**
      * getAssignmentOn.
      */
-    public function getAssignmentOn(RoleableEntity $entity): ?RoleInterface
+    public function getAssignmentOn(RoleableEntity $entity): ?RoleContract
     {
         return Porter::getRoleOn($this, $entity);
 

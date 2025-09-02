@@ -27,6 +27,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Porter Directory
+    |--------------------------------------------------------------------------
+    |
+    | The directory where Porter role classes are stored.
+    | This should be an absolute path or relative to the app directory.
+    |
+    */
+    'directory' => env('PORTER_DIRECTORY', app_path('Porter')),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Role Namespace
+    |--------------------------------------------------------------------------
+    |
+    | The namespace where Porter role classes are located.
+    | This should match the directory structure.
+    |
+    */
+    'namespace' => env('PORTER_NAMESPACE', 'App\\Porter'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Available Roles
     |--------------------------------------------------------------------------
     |
@@ -42,7 +64,7 @@ return [
         App\Porter\Contributor::class,
         App\Porter\Viewer::class,
         App\Porter\Guest::class,
-        
+
         // Add your custom roles here
         // App\Porter\ProjectManager::class,
     ],
@@ -57,7 +79,7 @@ return [
     |
     | Supported strategies:
     | - 'ulid' (recommended): Time-ordered, URL-safe identifiers
-    | - 'uuid': Standard UUID v4 identifiers  
+    | - 'uuid': Standard UUID v4 identifiers
     | - 'integer': Traditional auto-increment integers
     |
     */

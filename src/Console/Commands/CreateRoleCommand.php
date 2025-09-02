@@ -4,61 +4,85 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter\Console\Commands;
 
+use Hdaklue\Porter\Validators\RoleValidator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class CreateRoleCommand extends Command
 {
-    protected $signature = 'porter:create {name? : The role name} {--level= : The role level (1-10)} {--description= : The role description} {--lower= : Create a role with a level lower than the specified role} {--higher= : Create a role with a level higher than the specified role}';
+    protected $signature = 'porter:create {name? : The role name} {--description= : The role description}';
 
     protected $description = 'Create a new Porter role class';
 
     public function handle(): int
     {
-        $lower = $this->option('lower');
-        $higher = $this->option('higher');
-
-        if ($lower && $higher) {
-            $this->error('The --lower and --higher options are mutually exclusive.');
-
-            return Command::FAILURE;
-        }
+        $this->info('🎭 Creating a new Porter role...');
+        $this->newLine();
 
         $name = $this->argument('name') ?: $this->askForRoleName();
+
+        // Automatically convert to PascalCase using RoleValidator
+        $name = RoleValidator::normalizeName($name);
+
+        // Check for duplicate names early using RoleValidator
+        $porterDir = config('porter.directory');
+        if (RoleValidator::nameExists($name, $porterDir)) {
+            $this->error("❌ Role name '{$name}' already exists!");
+
+            return Command::FAILURE;
+        }
+
         $description = $this->option('description') ?: $this->askForRoleDescription($name);
 
-        $level = 0; // Initialize level
+        // Ask user to select creation mode
+        $creationMode = $this->askForCreationMode();
 
-        if ($lower || $higher) {
-            [$calculatedLevel, $rolesToUpdate] = $this->handleHierarchyOptions($lower, $higher);
-            if ($calculatedLevel === Command::FAILURE) {
+        // Handle hierarchy options that need target role selection
+        $targetRole = null;
+        if (in_array($creationMode, ['lower', 'higher'])) {
+            $availableRoles = RoleValidator::getSelectableRoles($porterDir);
+            if (empty($availableRoles)) {
+                $this->error('There are no existing roles to reference.');
+
                 return Command::FAILURE;
             }
-            $level = $calculatedLevel;
-
-            // If --level was also provided, ignore it and warn the user
-            if ($this->option('level')) {
-                $this->warn('The --level option is ignored when --lower or --higher is used.');
-            }
-
-            // Update existing role files
-            if (! empty($rolesToUpdate)) {
-                $this->info('Updating levels of existing roles...');
-                $this->updateRoleLevelsInFiles($rolesToUpdate);
-            }
-        } else {
-            $level = $this->option('level') ? (int) $this->option('level') : $this->askForRoleLevel();
+            $targetRole = $this->choice('Which role do you want to reference?', $availableRoles);
         }
 
-        // Validate inputs
-        if (! $this->validateInputs($name, $level, $description)) {
+        // Calculate level and roles to update using RoleValidator
+        try {
+            [$level, $rolesToUpdate] = RoleValidator::calculateLevel($creationMode, $targetRole, $porterDir);
+        } catch (\InvalidArgumentException $e) {
+            $this->error($e->getMessage());
+
             return Command::FAILURE;
         }
 
-        // Check for duplicates
-        if (! $this->checkForDuplicates($name, $level)) {
+        // Validate inputs using RoleValidator
+        if (! RoleValidator::isValidLevel($level)) {
+            $this->error("CRITICAL ERROR: Calculated level {$level} is invalid. This should never happen.");
+
             return Command::FAILURE;
+        }
+
+        if (! RoleValidator::isValidDescription($description)) {
+            $this->error('Role description cannot be empty.');
+
+            return Command::FAILURE;
+        }
+
+        // Check for level conflicts BEFORE updating role files
+        if (RoleValidator::levelConflicts($level, $porterDir, $rolesToUpdate)) {
+            $this->error("❌ Role level '{$level}' would conflict with existing roles.");
+
+            return Command::FAILURE;
+        }
+
+        // Update existing role files if needed
+        if (! empty($rolesToUpdate)) {
+            $this->info('Updating levels of existing roles...');
+            $this->updateRoleLevelsInFiles($rolesToUpdate);
         }
 
         // Create the role file
@@ -78,7 +102,7 @@ class CreateRoleCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function handleHierarchyOptions(?string $lower, ?string $higher): array
+    private function handleHierarchyOptions(string $mode): array
     {
         $porterDir = app_path('Porter');
         $existingRoles = $this->getExistingRoles($porterDir);
@@ -106,43 +130,102 @@ class CreateRoleCommand extends Command
             return [Command::FAILURE, []]; // Return failure and empty array
         }
 
-        $newRoleLevel = 0;
+        $newRoleLevel = 1; // Initialize to minimum valid level
         $rolesToUpdate = [];
 
-        if ($lower) {
-            if ($targetRoleLevel === 1) {
-                $newRoleLevel = 1;
-                // All roles >= 1 need to be incremented
-                foreach ($existingRoles['levels'] as $level => $name) {
-                    $rolesToUpdate[] = ['name' => $name, 'old_level' => $level, 'new_level' => $level + 1, 'file' => $existingRoles['names'][$name]];
+        if ($mode === 'lower') {
+            // Create new role at the same level as selected role
+            $newRoleLevel = $targetRoleLevel;
+
+            // Push the selected role and all roles above it up by 1
+            foreach ($existingRoles['levels'] as $level => $name) {
+                if ($level >= $targetRoleLevel) {
+                    $newLevel = $level + 1;
+                    $rolesToUpdate[] = ['name' => $name, 'old_level' => $level, 'new_level' => $newLevel, 'file' => $existingRoles['names'][$name]];
                 }
-            } else {
-                $newRoleLevel = $targetRoleLevel - 1;
-                // All roles >= newRoleLevel need to be incremented
+            }
+        } elseif ($mode === 'higher') { // higher
+            $newRoleLevel = $targetRoleLevel + 1;
+
+            // Check if newRoleLevel is already taken
+            if (isset($existingRoles['levels'][$newRoleLevel])) {
+                // Need to shift roles up: all roles with level >= newRoleLevel get incremented
                 foreach ($existingRoles['levels'] as $level => $name) {
                     if ($level >= $newRoleLevel) {
-                        $rolesToUpdate[] = ['name' => $name, 'old_level' => $level, 'new_level' => $level + 1, 'file' => $existingRoles['names'][$name]];
+                        $newLevel = $level + 1;
+                        $rolesToUpdate[] = ['name' => $name, 'old_level' => $level, 'new_level' => $newLevel, 'file' => $existingRoles['names'][$name]];
                     }
                 }
             }
-        } else { // higher
-            $newRoleLevel = $targetRoleLevel + 1;
-            // All roles >= newRoleLevel need to be incremented
-            foreach ($existingRoles['levels'] as $level => $name) {
-                if ($level >= $newRoleLevel) {
-                    $rolesToUpdate[] = ['name' => $name, 'old_level' => $level, 'new_level' => $level + 1, 'file' => $existingRoles['names'][$name]];
-                }
-            }
+            // No roles need updating if the level is free
         }
 
-        // Check for level constraints (should not be 0 or less, already handled for lower=1)
+        // CRITICAL: Final validation - ensure calculated level is positive
         if ($newRoleLevel < 1) {
-            $this->error("Calculated level {$newRoleLevel} is invalid. Level must be 1 or higher.");
+            $this->error("CRITICAL ERROR: Calculated level {$newRoleLevel} is invalid. Level must be 1 or higher.");
 
             return [Command::FAILURE, []];
         }
 
         return [$newRoleLevel, $rolesToUpdate];
+    }
+
+    private function askForCreationMode(): string
+    {
+        $porterDir = config('porter.directory');
+        $options = RoleValidator::getCreationModeOptions($porterDir);
+
+        $this->info('How would you like to position this role?');
+        $this->newLine();
+
+        foreach ($options as $key => $option) {
+            $this->line("  <fg=cyan>{$option}</>");
+        }
+
+        $this->newLine();
+
+        return $this->choice('Select creation mode:', array_keys($options));
+    }
+
+    private function handleLowestOption(): array
+    {
+        $porterDir = app_path('Porter');
+        $existingRoles = $this->getExistingRoles($porterDir);
+
+        if (empty($existingRoles['levels'])) {
+            // No existing roles, create at level 1
+            return [1, []];
+        }
+
+        // Create at level 1 and push all existing roles up by 1
+        $rolesToUpdate = [];
+        foreach ($existingRoles['levels'] as $level => $name) {
+            $newLevel = $level + 1;
+            $rolesToUpdate[] = [
+                'name' => $name,
+                'old_level' => $level,
+                'new_level' => $newLevel,
+                'file' => $existingRoles['names'][$name],
+            ];
+        }
+
+        return [1, $rolesToUpdate];
+    }
+
+    private function handleHighestOption(): int
+    {
+        $porterDir = app_path('Porter');
+        $existingRoles = $this->getExistingRoles($porterDir);
+
+        if (empty($existingRoles['levels'])) {
+            // No existing roles, create at level 1
+            return 1;
+        }
+
+        // Find the highest level and create one level higher
+        $highestLevel = max(array_keys($existingRoles['levels']));
+
+        return $highestLevel + 1;
     }
 
     private function askForRoleName(): string
@@ -155,37 +238,10 @@ class CreateRoleCommand extends Command
                 continue;
             }
 
-            if (! $this->isValidRoleName($name)) {
-                $this->error('Role name must be a valid PHP class name (PascalCase, letters only).');
-                continue;
-            }
-
             break;
         } while (true);
 
-        return ucfirst($name);
-    }
-
-    private function askForRoleLevel(): int
-    {
-        do {
-            $level = $this->ask('What is the role level? (1-10, where 10 is highest privilege)');
-
-            if (! is_numeric($level)) {
-                $this->error('Role level must be a number.');
-                continue;
-            }
-            $level = (int) $level;
-
-            if ($level < 1 || $level > 10) {
-                $this->error('Role level must be between 1 and 10.');
-                continue;
-            }
-
-            break;
-        } while (true);
-
-        return $level;
+        return RoleValidator::normalizeName($name);
     }
 
     private function askForRoleDescription(string $name): string
@@ -197,16 +253,9 @@ class CreateRoleCommand extends Command
 
     private function validateInputs(string $name, int $level, string $description): bool
     {
-        // Validate name
-        if (! $this->isValidRoleName($name)) {
-            $this->error("Invalid role name: '{$name}'. Must be a valid PHP class name.");
-
-            return false;
-        }
-
-        // Validate level
-        if ($level < 1 || $level > 10) {
-            $this->error("Invalid role level: {$level}. Must be between 1 and 10.");
+        // Validate level (should always be positive since it's calculated)
+        if ($level < 1) {
+            $this->error("CRITICAL ERROR: Calculated level {$level} is invalid. This should never happen.");
 
             return false;
         }
@@ -227,22 +276,25 @@ class CreateRoleCommand extends Command
         return (bool) preg_match('/^[A-Z][A-Za-z]*$/', $name);
     }
 
-    private function checkForDuplicates(string $name, int $level): bool
+    private function checkForDuplicates(string $name, int $level, array $rolesToUpdate = []): bool
     {
         $porterDir = app_path('Porter');
         $existingRoles = $this->getExistingRoles($porterDir);
 
-        // Check for duplicate name
-        if (isset($existingRoles['names'][$name])) {
-            $this->error("❌ Role name '{$name}' already exists!");
-            $this->info('Existing role location: '.$existingRoles['names'][$name]);
-
-            return false;
+        // Apply pending updates to get accurate level information
+        $updatedLevels = $existingRoles['levels'];
+        foreach ($rolesToUpdate as $update) {
+            // Remove old level
+            if (isset($updatedLevels[$update['old_level']])) {
+                unset($updatedLevels[$update['old_level']]);
+            }
+            // Add new level
+            $updatedLevels[$update['new_level']] = $update['name'];
         }
 
-        // Check for duplicate level
-        if (isset($existingRoles['levels'][$level])) {
-            $this->error("❌ Role level '{$level}' is already used by role: ".$existingRoles['levels'][$level]);
+        // Check for duplicate level against the updated levels
+        if (isset($updatedLevels[$level])) {
+            $this->error("❌ Role level '{$level}' is already used by role: ".$updatedLevels[$level]);
             $this->info('Each role must have a unique level. Choose a different level.');
 
             return false;
@@ -278,7 +330,7 @@ class CreateRoleCommand extends Command
 
     private function createRoleFile(string $name, int $level, string $description): void
     {
-        $porterDir = app_path('Porter');
+        $porterDir = config('porter.directory');
 
         if (! File::exists($porterDir)) {
             File::makeDirectory($porterDir, 0755, true);
@@ -286,10 +338,11 @@ class CreateRoleCommand extends Command
 
         $filepath = "{$porterDir}/{$name}.php";
         $stub = $this->getRoleStub();
+        $namespace = config('porter.namespace');
 
         $content = str_replace(
-            ['{{name}}', '{{level}}', '{{description}}', '{{snake_name}}'],
-            [$name, $level, $description, Str::snake($name)],
+            ['{{name}}', '{{level}}', '{{description}}', '{{snake_name}}', '{{namespace}}'],
+            [$name, $level, $description, Str::snake($name), $namespace],
             $stub
         );
 
@@ -320,12 +373,24 @@ class CreateRoleCommand extends Command
             $oldLevel = $role['old_level'];
             $newLevel = $role['new_level'];
 
+            // CRITICAL: Final safety check before writing to file
+            if ($newLevel < 1) {
+                $this->error("CRITICAL: Attempted to write invalid level {$newLevel} for role {$role['name']}. Level must be 1 or higher.");
+                continue;
+            }
+
+            // CRITICAL: Ensure old level is also valid (should never happen, but safety first)
+            if ($oldLevel < 1) {
+                $this->error("CRITICAL: Found invalid old level {$oldLevel} for role {$role['name']}. Skipping update.");
+                continue;
+            }
+
             $content = File::get($filepath);
 
             // Replace the old level with the new level in the file content
             // This regex is specific to the getLevel() method in the stub
             $content = preg_replace(
-                "/function getLevel\(\)\{[^\}]*{\s*return\s+{$oldLevel};/s",
+                "/function getLevel\(\):\s*int[^{]*{\s*return\s+{$oldLevel};/s",
                 "function getLevel(): int\n    {\n        return {$newLevel};",
                 $content,
                 1 // Only replace the first occurrence
@@ -333,6 +398,12 @@ class CreateRoleCommand extends Command
 
             if ($content === null) {
                 $this->error("Failed to update level for role: {$role['name']}. Regex replacement failed.");
+                continue;
+            }
+
+            // CRITICAL: Verify the replacement actually happened
+            if (! str_contains($content, "return {$newLevel};")) {
+                $this->error("CRITICAL: Level replacement verification failed for role {$role['name']}. File not updated.");
                 continue;
             }
 

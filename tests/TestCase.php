@@ -22,9 +22,9 @@ abstract class TestCase extends Orchestra
     protected function resolveApplicationConfiguration($app)
     {
         parent::resolveApplicationConfiguration($app);
-        
+
         // Work around Laravel 12 ConfigMakeCommand bug
-        if (!class_exists('Illuminate\Foundation\Console\ConfigMakeCommand')) {
+        if (! class_exists('Illuminate\Foundation\Console\ConfigMakeCommand')) {
             class_alias('Illuminate\Foundation\Console\ConsoleMakeCommand', 'Illuminate\Foundation\Console\ConfigMakeCommand');
         }
     }
@@ -59,7 +59,7 @@ abstract class TestCase extends Orchestra
         // Configure test roles
         $app['config']->set('porter.roles', [
             \Hdaklue\Porter\Tests\Fixtures\TestAdmin::class,
-            \Hdaklue\Porter\Tests\Fixtures\TestEditor::class, 
+            \Hdaklue\Porter\Tests\Fixtures\TestEditor::class,
             \Hdaklue\Porter\Tests\Fixtures\TestViewer::class,
         ]);
 
@@ -74,12 +74,12 @@ abstract class TestCase extends Orchestra
         // Configure caching for testing
         $app['config']->set('porter.cache.enabled', false); // Disable for testing
         $app['config']->set('porter.should_cache', false);
-        
+
         $app['config']->set('cache.default', 'array');
         $app['config']->set('session.driver', 'array');
-        
+
         // Set app key for encryption (needed even when disabled)
-        $app['config']->set('app.key', 'base64:' . base64_encode('a16charsstringkey'));
+        $app['config']->set('app.key', 'base64:'.base64_encode('a16charsstringkey'));
     }
 
     protected function getEnvironmentSetUp($app)

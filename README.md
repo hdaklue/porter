@@ -4,18 +4,135 @@
 
 A lightweight, blazing-fast Laravel role-based access control package that treats roles as what they truly are: **domain business logic**, not database abstractions. Built for developers who value simplicity, performance, and clean architecture.
 
+> "We must ship."
+
+--- 
+
+## Table of Contents
+
+- [Why Porter?](#why-porter)
+- [Philosophy & Core Beliefs](#philosophy--core-beliefs)
+- [Roadmap & Community Input](#roadmap--community-input)
+- [Core Features](#core-features)
+- [Suggested Usage](#suggested-usage)
+- [Installation](#installation)
+- [Advanced Features](#advanced-features)
+- [Configuration](#configuration)
+- [Laravel Integration](#laravel-integration)
+- [Migration Strategy](#migration-strategy)
+- [Performance](#performance)
+- [CLI Commands](#cli-commands)
+- [Testing](#testing)
+- [Requirements](#requirements)
+- [Contributing](#contributing)
+- [License](#license)
+
+--- 
+
 ## Why Porter?
 
 > *"Roles are business logic, not database magic."*
 
-Porter was born from the frustration of dealing with bloated RBAC packages that turn simple role assignments into complex database gymnastics. We believe:
+Porter was born from the frustration of dealing with bloated RBAC packages that turn simple role assignments into complex database gymnastics. As a **fresh package** entering the Laravel ecosystem, Porter aims to solve real problems that developers face daily. I believe in providing a solution that is both powerful and elegant, convincing the community that there's a better way to handle role management.
 
-- **Roles are domain concepts** - Each role should be its own focused class
-- **Simplicity over abstraction** - 3 core components, not 30
-- **Performance matters** - Database operations should be minimal and fast
-- **Laravel integration** - Work with Gates, Policies, and Blade seamlessly
+### The Problem with Existing Solutions
 
-## ⚡ Core Features
+Most RBAC packages are:
+- **Over-engineered** - 30+ classes for simple role assignments
+- **Database-heavy** - Complex joins and foreign key nightmares
+- **Performance-blind** - Slow queries that don't scale
+- **Generic** - One-size-fits-all approaches that fit no one
+
+### Porter's Approach
+
+Porter treats roles as **first-class business entities** with their own focused classes, not generic database records.
+
+--- 
+
+## Philosophy & Core Beliefs
+
+I believe in:
+
+- **🎯 Roles are domain concepts** - Each role should be its own focused class with business logic
+- **🚀 Simplicity over abstraction** - 3 core components, not 30
+- **⚡ Performance matters** - Database operations should be minimal and fast
+- **🎨 Laravel integration** - Work seamlessly with Gates, Policies, and Blade
+- **🔧 Developer experience** - Clean APIs that feel natural to use
+- **📈 Scalability** - Architecture that grows with your application
+
+--- 
+
+## Roadmap & Community Input
+
+As a **new package**, your feedback directly shapes Porter's future! I am actively seeking community input and suggestions to prioritize features and ensure Porter evolves into the most valuable tool for your Laravel projects.
+
+### 🎯 **Potential Features (Vote & Discuss!)**
+
+#### 🏢 **Multi-Tenancy Support**
+Enhanced multi-tenant capabilities with tenant-aware role assignments.
+
+**Benefits:**
+- 🔒 Perfect tenant isolation
+- 📊 Tenant-specific role analytics
+- 🚀 SaaS application ready
+- 🛡️ Data security by design
+
+#### 🔐 **Granular Permissions System**
+Fine-grained permissions with contextual validation.
+
+**Benefits:**
+- 🎯 Ultra-granular control
+- 📋 Context-aware validation
+- 🔄 Dynamic permission evaluation
+- 🛠️ Complex business rules
+
+#### 🌐 **REST API Endpoints**
+Ready-to-use API endpoints for role management.
+
+**Benefits:**
+- 📱 Mobile app integration
+- 🔗 Third-party service connectivity
+- ⚡ Frontend SPA support
+- 📊 External dashboard integration
+
+### 🗳️ **Help Me Decide!**
+
+I want to build what YOU need most. Please share your feedback on:
+
+1. **Which feature would have the biggest impact on your projects?**
+2. **What specific use cases do you have in mind?**
+3. **Are there other features not listed that would be valuable?**
+4. **What's the best way for the community to provide ongoing feedback?**
+
+#### 💬 **Community Feedback Options:**
+
+I'm also looking for input on the best way to gather community feedback. Should we use:
+
+- **GitHub Discussions** for ongoing feature conversations?
+- **Project Wiki** for collaborative roadmap planning?
+- **Feature Request Templates** with voting mechanisms?
+- **Discord/Slack Community** for real-time discussions?
+- **Monthly Community Calls** for direct feedback sessions?
+
+**What works best for you as a developer?** Your input on the feedback process itself will help shape how I collaborate going forward.
+
+#### 🎖️ **Recognition**
+
+Contributors who provide valuable feedback will be:
+- 📜 **Credited** in release notes
+- 🏷️ **Mentioned** as community advisors
+- 🚀 **Early access** to beta features
+- 💬 **Direct input** on API design decisions
+
+--- 
+
+## Core Features
+
+- 🎯 **Individual Role Classes**: Each role is its own focused class extending `BaseRole`.
+- 🚀 **Ultra-Minimal Architecture**: Just 3 core components for role management.
+- 🔥 **Blazing Performance**: Optimized for speed with minimal database interaction and built-in caching.
+- 🆕 **Latest Features**: Includes dynamic role factory, config-driven architecture, and enhanced Roster model.
+- 🎨 **Perfect Laravel Integration**: Seamlessly works with Gates, Policies, and Blade.
 
 ### 🎯 **Individual Role Classes**
 Each role is its own focused class extending `BaseRole` - no more generic "role" entities:
@@ -27,7 +144,7 @@ final class Admin extends BaseRole
     public function getLevel(): int { return 10; }
 }
 
-final class Editor extends BaseRole  
+final class Editor extends BaseRole
 {
     public function getName(): string { return 'editor'; }
     public function getLevel(): int { return 5; }
@@ -37,14 +154,23 @@ final class Editor extends BaseRole
 ### 🚀 **Ultra-Minimal Architecture**
 Just **3 core components** - no bloat, no confusion:
 - `RoleManager` - Role assignment service
-- `Roster` - Pivot model for role assignments  
+- `Roster` - Enhanced model for role assignments (with timestamps & scopes)
 - Individual role classes - Your business logic
 
 ### 🔥 **Blazing Performance**
-- **Zero complex queries** - Simple pivot table operations
-- **Minimal database footprint** - Single table for role assignments
-- **Type-safe operations** - Full PHP 8.1+ support with enums
+- **Zero complex queries** - Simple single-table operations
+- **Minimal database footprint** - One table for all role assignments
+- **Type-safe operations** - Full PHP 8.1+ support with contracts
 - **Cached by design** - Built-in Laravel cache integration
+
+### 🆕 **Latest Features**
+- **`--roles` Flag**: Optional default role creation during installation
+- **Production Protection**: Install command blocks execution in production environment
+- **Dynamic Role Factory**: Magic `__callStatic` methods for type-safe role instantiation
+- **Config-Driven Architecture**: Configurable directory and namespace settings
+- **Interactive Role Creation**: Guided role creation with automatic level calculation
+- **Laravel Contracts**: Uses `RoleContract` following Laravel conventions
+- **Enhanced Roster Model**: Timestamps, query scopes, and human-readable descriptions
 
 ### 🎨 **Perfect Laravel Integration**
 Works seamlessly with your existing authorization:
@@ -56,7 +182,7 @@ public function update(User $user, Project $project)
     return $user->hasRoleOn($project, 'admin');
 }
 
-// In your Controller  
+// In your Controller
 $this->authorize('update', $project);
 
 // In your Blade templates
@@ -65,20 +191,13 @@ $this->authorize('update', $project);
 @endcan
 ```
 
-## 📦 Installation
+--- 
 
-```bash
-composer require hdaklue/porter
-```
+## Suggested Usage
 
-Publish migrations and run them:
+This section provides a quick overview and detailed examples of how to integrate and use Porter in your Laravel application.
 
-```bash
-php artisan porter:install
-php artisan migrate
-```
-
-## 🚀 Quick Start
+### Quick Start
 
 ### Basic Role Assignment
 
@@ -100,47 +219,51 @@ RoleManager::changeRoleOn($user, $project, 'editor');
 
 ### Create Your Role Classes
 
+Porter provides multiple ways to create role classes:
+
+#### Interactive Role Creation
+```bash
+# Interactive command with guided setup
+php artisan porter:create
+
+# Choose creation mode: lowest, highest, lower, higher
+# Automatic level calculation based on existing roles
+# Configurable directory and namespace from config
+```
+
+#### Dynamic Role Factory
 ```php
-use Hdaklue\Porter\Roles\BaseRole;
+use Hdaklue\Porter\RoleFactory;
+
+// Magic factory methods - scans your Porter directory automatically
+$admin = RoleFactory::admin();           // Creates Admin role instance
+$projectManager = RoleFactory::projectManager(); // Creates ProjectManager role instance
+
+// Check if role exists before using
+if (RoleFactory::existsInPorterDirectory('CustomRole')) {
+    $role = RoleFactory::customRole();
+}
+```
+
+#### Manual Role Classes
+```php
+use App\Porter\BaseRole; // Your application's base role
 
 final class ProjectManager extends BaseRole
 {
-    public function getName(): string 
-    { 
-        return 'project_manager'; 
+    public function getName(): string
+    {
+        return 'project_manager';
     }
-    
-    public function getLevel(): int 
-    { 
-        return 7; 
-    }
-}
 
-final class Developer extends BaseRole
-{
-    public function getName(): string 
-    { 
-        return 'developer'; 
-    }
-    
-    public function getLevel(): int 
-    { 
-        return 3; 
+    public function getLevel(): int
+    {
+        return 7;
     }
 }
 ```
 
-Register your roles in `config/porter.php`:
-
-```php
-'roles' => [
-    App\Roles\Admin::class,
-    App\Roles\ProjectManager::class,
-    App\Roles\Developer::class,
-],
-```
-
-## 🏗️ Real-World Usage Examples
+### Usage Examples
 
 ### Multi-Tenant SaaS Application
 
@@ -178,24 +301,52 @@ RoleManager::assign($catalogManager, $catalog, 'catalog_manager');
 RoleManager::assign($doctor, $department, 'attending_physician');
 RoleManager::assign($nurse, $department, 'head_nurse');
 
-// Patient care assignments  
+// Patient care assignments
 RoleManager::assign($doctor, $patient, 'primary_care_physician');
 ```
 
-## 🔧 Advanced Features & Code Examples
+--- 
 
-### 🎯 **Role Hierarchy & Smart Comparisons**
+## Installation
+
+```bash
+composer require hdaklue/porter
+```
+
+**Flexible installation** with automatic setup:
+
+```bash
+# Basic installation - creates Porter directory with BaseRole only
+php artisan porter:install
+
+# Full installation - includes 6 default role classes with proper hierarchy
+php artisan porter:install --roles
+```
+
+The install command:
+✅ Publishes configuration file
+✅ Publishes and runs migrations
+✅ Creates Porter directory with configurable namespace
+✅ Optionally creates 6 default role classes (Admin, Manager, Editor, Contributor, Viewer, Guest)
+✅ Provides contextual next-step guidance
+✅ Blocks installation in production environment for safety
+
+--- 
+
+## Advanced Features
+
+### Role Hierarchy & Smart Comparisons
 
 ```php
-use App\Roles\{Admin, ProjectManager, Developer, Viewer};
+use App\Porter\{Admin, ProjectManager, Developer, Viewer};
 
 $admin = new Admin();           // Level 10
-$manager = new ProjectManager(); // Level 7  
+$manager = new ProjectManager(); // Level 7
 $developer = new Developer();    // Level 3
 $viewer = new Viewer();         // Level 1
 
 // Intelligent role comparisons
-$admin->isHigherThan($manager);     // true  
+$admin->isHigherThan($manager);     // true
 $manager->isHigherThan($developer); // true
 $developer->isLowerThan($admin);    // true
 $admin->equals(new Admin());        // true
@@ -205,238 +356,120 @@ public function canManageProject(User $user, Project $project): bool
 {
     $userRole = RoleManager::getRoleOn($user, $project);
     $requiredRole = new ProjectManager();
-    
+
     return $userRole && $userRole->isHigherThanOrEqual($requiredRole);
 }
 ```
 
-### 📊 **Bulk Operations & Participant Management**
-
-```php
-// Get all participants with their roles
-$participants = RoleManager::getParticipants($project);
-foreach ($participants as $participant) {
-    echo "{$participant->name} is {$participant->pivot->role_key}";
-}
-
-// Advanced participant filtering  
-$admins = RoleManager::getParticipants($project)
-    ->filter(fn($user) => $user->hasRoleOn($project, 'admin'));
-
-$managers = RoleManager::getParticipants($project)
-    ->filter(function($user) use ($project) {
-        $role = RoleManager::getRoleOn($user, $project);
-        return $role && $role->getLevel() >= 7;
-    });
-
-// Check user's role status
-if ($user->hasAnyRoleOn($project)) {
-    $currentRole = RoleManager::getRoleOn($user, $project);
-    echo "You are: {$currentRole->getName()} (Level {$currentRole->getLevel()})";
-}
-```
-
-### 🗄️ **Advanced Database Queries**
+### Enhanced Roster Model with Scopes
 
 ```php
 use Hdaklue\Porter\Models\Roster;
-use Hdaklue\Porter\RoleFactory;
 
-// Find all admins across the entire system
-$allAdmins = Roster::where('role_key', Admin::getDbKey())
-    ->with(['assignable', 'roleable'])
-    ->get();
+// Query role assignments with new scopes
+$userAssignments = Roster::forAssignable(User::class, $user->id)->get();
+$projectRoles = Roster::forRoleable(Project::class, $project->id)->get();
+$adminAssignments = Roster::withRoleName('admin')->get();
 
-// Get all role assignments for a specific entity
-$projectRoles = Roster::where('roleable_type', Project::class)
-    ->where('roleable_id', $project->id)
-    ->with('assignable')
-    ->get()
-    ->map(function($assignment) {
-        return [
-            'user' => $assignment->assignable,
-            'role' => RoleFactory::make($assignment->role_key),
-            'assigned_at' => $assignment->created_at,
-        ];
-    });
+// Timestamps for audit trails
+$assignment = Roster::create([...]);
+echo "Assigned on: " . $assignment->created_at;
 
-// Complex role analytics
-$roleDistribution = Roster::selectRaw('role_key, COUNT(*) as count')
-    ->where('roleable_type', Project::class)
-    ->groupBy('role_key')
-    ->pluck('count', 'role_key');
-    
-// Result: ['admin' => 15, 'manager' => 45, 'developer' => 120]
-```
-
-### 🔄 **Dynamic Role Management**
-
-```php
-// Conditional role assignments based on business logic
-class ProjectRoleManager
-{
-    public function promoteToManager(User $user, Project $project): void
-    {
-        // Business validation
-        if (!$user->hasRoleOn($project, 'developer')) {
-            throw new \Exception('User must be a developer first');
-        }
-        
-        if ($user->contributions()->where('project_id', $project->id)->count() < 10) {
-            throw new \Exception('Insufficient contributions for promotion');
-        }
-        
-        // Promote with audit trail
-        RoleManager::changeRoleOn($user, $project, 'manager');
-        
-        // Notification
-        $user->notify(new RoleChangedNotification($project, 'manager'));
-    }
-    
-    public function demoteUser(User $user, Project $project, string $reason): void
-    {
-        $currentRole = RoleManager::getRoleOn($user, $project);
-        
-        // Can't demote admins
-        if ($currentRole instanceof Admin) {
-            throw new \Exception('Cannot demote project administrators');
-        }
-        
-        // Log the demotion
-        Log::info('User demoted', [
-            'user_id' => $user->id,
-            'project_id' => $project->id, 
-            'from_role' => $currentRole->getName(),
-            'reason' => $reason
-        ]);
-        
-        RoleManager::changeRoleOn($user, $project, 'viewer');
-    }
+// Human-readable descriptions
+foreach ($assignments as $assignment) {
+    echo $assignment->description;
+    // Output: "User #123 has role 'admin' on Project #456"
 }
 ```
 
-### 🎨 **Custom Role Classes with Business Logic**
+### Custom Role Classes with Business Logic
 
 ```php
 final class RegionalManager extends BaseRole
 {
     public function getName(): string { return 'regional_manager'; }
     public function getLevel(): int { return 8; }
-    
+
     public function getRegions(): array
     {
         return ['north', 'south', 'east', 'west'];
     }
-    
+
     public function canAccessRegion(string $region): bool
     {
         return in_array($region, $this->getRegions());
     }
-    
+
     public function getMaxBudgetApproval(): int
     {
         return 100000; // $100k approval limit
     }
 }
 
-final class DepartmentHead extends BaseRole  
-{
-    public function getName(): string { return 'department_head'; }
-    public function getLevel(): int { return 9; }
-    
-    public function canHireEmployees(): bool { return true; }
-    public function canFireEmployees(): bool { return true; }
-    
-    public function getReportingLevels(): int
-    {
-        return 3; // Can see 3 levels down
-    }
-}
-
 // Usage in business logic
 if ($user->hasRoleOn($company, 'regional_manager')) {
     $role = RoleManager::getRoleOn($user, $company);
-    
+
     if ($role->canAccessRegion('north') && $budget <= $role->getMaxBudgetApproval()) {
         // Approve the budget for northern region
     }
 }
 ```
 
-### 🔍 **Role Factory & Validation**
+--- 
 
-```php
-use Hdaklue\Porter\RoleFactory;
+## Configuration
 
-// Validate role existence before assignment
-public function assignRole(User $user, Model $entity, string $roleName): void
-{
-    if (!RoleFactory::exists($roleName)) {
-        throw new InvalidArgumentException("Role '{$roleName}' does not exist");
-    }
-    
-    $role = RoleFactory::make($roleName);
-    
-    // Additional validation
-    if ($role->getLevel() > 5 && !auth()->user()->hasRoleOn($entity, 'admin')) {
-        throw new UnauthorizedException('Only admins can assign high-level roles');
-    }
-    
-    RoleManager::assign($user, $entity, $roleName);
-}
-
-// Get all available roles with metadata
-$availableRoles = collect(RoleFactory::getAllRolesWithKeys())
-    ->map(function($roleClass, $key) {
-        $role = new $roleClass();
-        return [
-            'key' => $key,
-            'name' => $role->getName(),
-            'level' => $role->getLevel(),
-            'class' => get_class($role),
-        ];
-    })
-    ->sortBy('level');
-
-// Result for dropdown in UI:
-// [
-//   ['key' => 'viewer', 'name' => 'Viewer', 'level' => 1],
-//   ['key' => 'developer', 'name' => 'Developer', 'level' => 3],  
-//   ['key' => 'manager', 'name' => 'Manager', 'level' => 7],
-//   ['key' => 'admin', 'name' => 'Admin', 'level' => 10]
-// ]
-```
-
-## 🎛️ Configuration
-
-The `config/porter.php` file contains all package settings:
+The `config/porter.php` file contains all package settings with configurable options:
 
 ```php
 return [
+    // ID Strategy - Works with your existing models
+    'id_strategy' => env('PORTER_ID_STRATEGY', 'ulid'),
+
     // Database connection
-    'database_connection' => env('PORTER_DB_CONNECTION', 'mysql'),
-    
-    // Table names
-    'table_names' => [
-        'roaster' => 'roaster', // Role assignments table
-    ],
-    
-    // Your role classes
+    'database_connection' => env('PORTER_DB_CONNECTION'),
+
+    // Role Directory & Namespace Configuration
+    'directory' => env('PORTER_DIRECTORY', app_path('Porter')),
+    'namespace' => env('PORTER_NAMESPACE', 'App\\Porter'),
+
+    // Your role classes (auto-populated by porter:install --roles)
     'roles' => [
-        App\Roles\Admin::class,
-        App\Roles\Manager::class,
-        App\Roles\Editor::class,
+        App\Porter\Admin::class,
+        App\Porter\Manager::class,
+        App\Porter\Editor::class,
+        // ... add your custom roles here
     ],
-    
+
+    // Security settings
+    'security' => [
+        'key_storage' => env('PORTER_KEY_STORAGE', 'hashed'),  // 'hashed' or 'plain'
+        'auto_generate_keys' => env('PORTER_AUTO_KEYS', true),
+    ],
+
     // Caching
     'cache' => [
-        'enabled' => true,
-        'ttl' => 3600, // 1 hour
+        'enabled' => env('PORTER_CACHE_ENABLED', true),
+        'ttl' => env('PORTER_CACHE_TTL', 3600), // 1 hour
     ],
 ];
 ```
 
-## ⚙️ Laravel Integration Patterns
+### Security Configuration
+
+```php
+// .env file
+PORTER_KEY_STORAGE=hashed     # Secure (default) - SHA256 hashed role keys
+PORTER_KEY_STORAGE=plain      # Debug mode - Plain text role keys
+
+PORTER_AUTO_KEYS=true         # Auto-generate keys from class names
+PORTER_AUTO_KEYS=false        # Manual key definition required
+```
+
+--- 
+
+## Laravel Integration
 
 ### Policy Classes
 
@@ -447,18 +480,18 @@ class ProjectPolicy
     {
         return $user->hasAnyRoleOn($project);
     }
-    
+
     public function update(User $user, Project $project)
     {
-        return $user->hasRoleOn($project, 'admin') 
+        return $user->hasRoleOn($project, 'admin')
             || $user->hasRoleOn($project, 'manager');
     }
-    
+
     public function delete(User $user, Project $project)
     {
         return $user->hasRoleOn($project, 'admin');
     }
-    
+
     public function invite(User $user, Project $project)
     {
         $role = RoleManager::getRoleOn($user, $project);
@@ -475,11 +508,11 @@ class RequireRoleOnEntity
     public function handle(Request $request, Closure $next, string $role)
     {
         $entity = $request->route('project'); // or any entity
-        
+
         if (!$request->user()->hasRoleOn($entity, $role)) {
             abort(403, 'Insufficient role permissions');
         }
-        
+
         return $next($request);
     }
 }
@@ -489,130 +522,13 @@ Route::put('/projects/{project}', [ProjectController::class, 'update'])
     ->middleware('role.on.entity:admin');
 ```
 
-### Blade Components
+--- 
 
-```blade
-{{-- Check specific role --}}
-@can('update', $project)
-    <x-edit-button :project="$project" />
-@endcan
-
-{{-- Custom role directive --}}
-@hasRoleOn($project, 'admin')
-    <x-admin-panel :project="$project" />
-@endhasRoleOn
-
-{{-- Role level checks --}}
-@php $userRole = RoleManager::getRoleOn(auth()->user(), $project) @endphp
-@if($userRole && $userRole->getLevel() >= 5)
-    <x-manager-tools />
-@endif
-```
-
-## 🔐 **Non-Breaking Integration** - Deploy Safely
+## Migration Strategy
 
 > *"Porter adapts to YOUR existing models - no changes required!"*
 
-**✅ FLEXIBLE ID STRATEGY**: Porter works with any ID type your models already use!
-
-### 🎯 **Configure Once, Works Forever**
-
-```php
-// config/porter.php
-'id_strategy' => 'integer',  // For auto-increment IDs (default Laravel)
-// OR
-'id_strategy' => 'ulid',     // For modern ULID IDs  
-// OR
-'id_strategy' => 'uuid',     // For UUID IDs
-```
-
-### 📋 **Works With Your Existing Models**
-
-```php
-// ✅ TRADITIONAL AUTO-INCREMENT (Most Laravel apps)
-class User extends Authenticatable
-{
-    // Standard auto-increment ID - Porter adapts automatically!
-}
-
-// ✅ MODERN ULID APPROACH (Laravel 9+)
-class User extends Authenticatable
-{
-    use HasUlids;  // Porter detects and uses ULIDs
-}
-
-// ✅ UUID STRATEGY (Legacy or distributed systems)
-class User extends Authenticatable
-{
-    use HasUuids;  // Porter detects and uses UUIDs
-}
-```
-
-### 🔄 **Smart Database Optimization**
-
-Porter's migration automatically creates the right column types:
-
-```sql
--- For integer strategy (PORTER_ID_STRATEGY=integer)
-CREATE TABLE roaster (
-    assignable_type varchar(255),
-    assignable_id bigint unsigned,     ← Optimized for integers
-    roleable_type varchar(255), 
-    roleable_id bigint unsigned,       ← Optimized for integers
-    role_key varchar(255)
-);
-
--- For ULID strategy (PORTER_ID_STRATEGY=ulid) 
-CREATE TABLE roaster (
-    assignable_type varchar(255),
-    assignable_id varchar(255),        ← Supports ULID strings
-    roleable_type varchar(255),
-    roleable_id varchar(255),          ← Supports ULID strings  
-    role_key varchar(255)
-);
-
--- For UUID strategy (PORTER_ID_STRATEGY=uuid)
-CREATE TABLE roaster (
-    assignable_type varchar(255),
-    assignable_id char(36),            ← Optimized UUID column
-    roleable_type varchar(255),
-    roleable_id char(36),              ← Optimized UUID column
-    role_key varchar(255)
-);
-```
-
-### 🛡️ **Polymorphic Protection - Zero Conflicts**
-
-Porter's **polymorphic relationship** design prevents conflicts automatically:
-
-```php
-// ✅ NO CONFLICT - Even with same IDs across models:
-User::find(1)    // ID: 1, Type: 'App\Models\User'
-Project::find(1) // ID: 1, Type: 'App\Models\Project'
-
-// In roaster table, these are completely unique:
-// assignable_type: 'App\Models\User',    assignable_id: 1
-// assignable_type: 'App\Models\Project', assignable_id: 1
-```
-
-**The combination of `type + id` guarantees uniqueness**:
-```php
-// Perfect isolation in the database:
-[
-    'assignable_type' => 'App\Models\User',
-    'assignable_id' => 1,             // User #1
-    'roleable_type' => 'App\Models\Project', 
-    'roleable_id' => 1                // Project #1
-],
-[
-    'assignable_type' => 'App\Models\Project',
-    'assignable_id' => 1,             // Project #1 (different context!)
-    'roleable_type' => 'App\Models\Organization',
-    'roleable_id' => 1                // Organization #1
-]
-```
-
-### 🚀 **Zero-Downtime Migration Strategy**
+### Zero-Downtime Migration Strategy
 
 Porter works **parallel** to your existing role system:
 
@@ -622,14 +538,12 @@ composer require hdaklue/porter
 php artisan porter:install
 php artisan migrate  // Just adds the `roaster` table
 
-// Phase 2: Add ULIDs to existing models
-class User extends Authenticatable 
+// Phase 2: Add traits to existing models (optional)
+class User extends Authenticatable
 {
-    use HasUlids;  // Add this trait
-    
+    use HasUlids;  // Add this trait for modern ID strategy
+
     // All existing code works unchanged!
-    // Auto-increment still works for existing records
-    // New records get ULIDs
 }
 
 // Phase 3: Gradually migrate role checks
@@ -642,24 +556,22 @@ if ($user->hasRoleOn($project, 'admin')) { /* Porter */ }
 // Phase 4: Switch over when ready (no rush!)
 ```
 
-### 🛡️ **Backward Compatibility Guaranteed**
+### Flexible ID Strategy
 
 ```php
-// Your existing authorization NEVER breaks
-Gate::define('update-project', function (User $user, Project $project) {
-    // Existing logic keeps working
-    return $user->isAdmin() || $user->owns($project);
-    
-    // Add Porter alongside (not replacing)
-    return $user->isAdmin() 
-        || $user->owns($project)
-        || $user->hasRoleOn($project, 'admin');  // ← New capability
-});
+// config/porter.php
+'id_strategy' => 'integer',  // For auto-increment IDs (default Laravel)
+// OR
+'id_strategy' => 'ulid',     // For modern ULID IDs
+// OR
+'id_strategy' => 'uuid',     // For UUID IDs
 ```
 
-## 📊 Performance Characteristics
+--- 
 
-### 🏆 **Single Table Architecture**
+## Performance
+
+### Single Table Architecture
 
 Porter uses **exactly ONE database table** (`roaster`) for all role assignments:
 
@@ -674,147 +586,63 @@ CREATE TABLE roaster (
     role_key varchar(255),         -- 'admin'
     created_at timestamp,
     updated_at timestamp,
-    
+
     -- Prevents duplicate assignments
     UNIQUE KEY porter_unique (assignable_type, assignable_id, roleable_type, roleable_id, role_key)
 );
 ```
 
-**Why Single Table Wins:**
-
-- ✅ **Zero complex joins** - Direct lookups by indexed columns
-- ✅ **Universal queries** - Same table for Users, Projects, Organizations, anything
-- ✅ **Blazing fast** - No foreign key constraints or relationship traversal
-- ✅ **Horizontally scalable** - Sharding-friendly with ULID prefixes
-- ✅ **Simple backups** - One table to rule them all
-
-### 🎯 **ID Strategy Comparison & Recommendations**
-
-Choose the strategy that fits your application architecture:
-
-| Strategy | Best For | Performance | Benefits | Migration Required |
-|----------|----------|-------------|----------|-------------------|
-| **integer** | Most Laravel apps | ⚡⚡⚡ Fastest | Smallest storage, fastest queries | ✅ No |
-| **ulid** | Modern/distributed | ⚡⚡ Fast | Time-ordered, URL-safe, distributed-friendly | 🔄 Easy |
-| **uuid** | Legacy/compliance | ⚡ Good | Standards compliant, widely supported | 🔄 Easy |
-
-### 💡 **ULID Strategy Benefits (Recommended for New Projects)**
-
-```php
-// .env configuration
-PORTER_ID_STRATEGY=ulid
-
-// Your models (Laravel 9+)
-class User extends Authenticatable 
-{
-    use HasUlids;  // Automatic ULID generation
-}
-
-class Project extends Model
-{
-    use HasUlids;
-}
-```
-
-**ULID Advantages:**
-```php
-$ulid1 = '01HBQM5F8G9YZ2XJKPQR4VWXYZ';  // Created first
-$ulid2 = '01HBQM6G9HAZB3YLKQRS5WXYZA';  // Created second
-
-// Natural time ordering without timestamps
-$ulid1 < $ulid2  // true - chronological order preserved
-
-// Advanced role assignment auditing
-$roleAssignments = Roster::orderBy('assignable_id')->get();  
-// ↑ Automatically sorted by creation time!
-
-// Database sharding by time prefix
-$recentAssignments = Roster::where('assignable_id', 'like', '01HBQM%')->get();
-```
-
-**ULID Benefits:**
-- 🕐 **Time-ordered sorting** - Natural chronological order
-- 🔍 **Better clustering** - Improved database performance  
-- 📊 **Sharding-friendly** - Perfect for distributed systems
-- 🔐 **URL-safe** - No special characters, case-insensitive
-- 🌐 **Collision-resistant** - 128-bit entropy
-
-### 🔢 **Integer Strategy (Default Laravel)**
-
-```php
-// .env configuration (or omit for default)
-PORTER_ID_STRATEGY=integer
-
-// Your models (standard Laravel)
-class User extends Authenticatable 
-{
-    // Standard auto-increment - no changes needed!
-}
-```
-
-**Integer Benefits:**
-- ⚡ **Fastest performance** - Native database optimization
-- 💾 **Smallest storage** - 8 bytes vs 26+ bytes for strings
-- 🔗 **Foreign key friendly** - Direct integer references
-- 📈 **Sequential predictability** - Easy for reporting/analytics
-
-**Performance Metrics:**
-- **Database queries**: Single table lookups, no complex joins
-- **Memory footprint**: ~3 classes, <500 lines total code  
-- **Cache integration**: Automatic Laravel cache support
-- **Type safety**: Full PHP 8.1+ type hints and strict types
-
-**Benchmarks** (compared to typical RBAC packages):
+**Performance Benefits:**
 - 🚀 **85% fewer database queries** for role checks
-- 🏃 **60% faster role assignments** with simple pivot operations  
+- 🏃 **60% faster role assignments** with simple operations
 - 💾 **90% smaller codebase** with focused architecture
 - 🧠 **Minimal memory usage** with individual role classes
-- ⚡ **Zero foreign key overhead** with string-based relationships
+- ⚡ **Zero foreign key overhead** with polymorphic relationships
 
-## 🛠️ Extending Porter
+--- 
 
-### Custom Role Classes
+## CLI Commands
 
-```php
-final class RegionalManager extends BaseRole
-{
-    public function getName(): string 
-    { 
-        return 'regional_manager'; 
-    }
-    
-    public function getLevel(): int 
-    { 
-        return 8; 
-    }
-    
-    public function getRegions(): array
-    {
-        return ['north', 'south', 'east', 'west'];
-    }
-    
-    public function canManageRegion(string $region): bool
-    {
-        return in_array($region, $this->getRegions());
-    }
-}
+Porter provides several Artisan commands for role management:
+
+### Installation Commands
+```bash
+# Basic installation (config, migrations, Porter directory)
+php artisan porter:install
+
+# Full installation with default roles
+php artisan porter:install --roles
+
+# Force overwrite existing files
+php artisan porter:install --roles --force
 ```
 
-### Role Validation
+### Role Management Commands  
+```bash
+# Interactive role creation with guided setup
+php artisan porter:create
 
-```php
-use Hdaklue\Porter\RoleFactory;
+# Create specific role with description
+php artisan porter:create ProjectManager --description="Manages development projects"
 
-// Validate role exists
-if (!RoleFactory::exists('custom_role')) {
-    throw new InvalidArgumentException('Role does not exist');
-}
+# List all available roles
+php artisan porter:list
 
-// Get all available roles
-$availableRoles = RoleFactory::getAllRolesWithKeys();
+# Validate Porter setup and configuration  
+php artisan porter:doctor
 ```
 
-## 🧪 Testing
+### Command Features
+- **Interactive Mode**: Guided role creation with automatic level calculation
+- **Smart Level Management**: Automatic hierarchy management (lowest, highest, lower, higher)
+- **Config-Driven**: Uses directory and namespace from configuration
+- **Production Safe**: Install command blocks execution in production
+- **Force Override**: `--force` flag for overwriting existing files
+- **Type Safety**: All generated roles implement `RoleContract`
+
+--- 
+
+## Testing
 
 Porter comes with a comprehensive test suite:
 
@@ -829,26 +657,44 @@ vendor/bin/pest --coverage
 vendor/bin/pest tests/Feature/RoleManagerDatabaseTest.php
 ```
 
-**Test Coverage**: 22 tests, 78 assertions covering:
-- Unit tests for role classes and factory
+**Test Coverage**: 52 tests, 309 assertions covering:
+- Unit tests for role classes and factory  
 - Feature tests for database operations
 - Integration tests with RefreshDatabase
+- Command testing for interactive role creation
+- Install command testing with different scenarios
+- Role factory and dynamic creation testing
+- Enhanced Roster model features
 
-## 📋 Requirements
+--- 
+
+## Requirements
 
 - **PHP 8.1+** - Modern language features
 - **Laravel 11.0+ | 12.0+** - Framework compatibility
 - **Database with JSON support** - MySQL 5.7+, PostgreSQL 9.5+, SQLite 3.1+
 
-## 🤝 Contributing
+--- 
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+## Contributing
 
-## 📝 License
+I welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+**Ways to help:**
+- 🐛 Report bugs and edge cases
+- 📝 Improve documentation
+- 🧪 Write additional tests
+- 💡 Suggest new features
+- 🌟 Share your use cases
+- 🗳️ Vote on roadmap features
+
+--- 
+
+## License
 
 MIT License. Free for commercial and personal use.
 
----
+--- 
 
 **Porter** - Keep it simple, keep it fast, keep it focused. 🚪
 

@@ -17,10 +17,10 @@ test('roles can be instantiated independently', function () {
     expect($admin->getLevel())->toBe(10);
     expect($admin->getLabel())->toBe('Test Administrator');
     expect($admin->getDescription())->toBe('Test role with full administrative privileges');
-    
+
     expect($editor->getName())->toBe('TestEditor');
     expect($editor->getLevel())->toBe(5);
-    
+
     expect($viewer->getName())->toBe('TestViewer');
     expect($viewer->getLevel())->toBe(1);
 });
@@ -34,18 +34,18 @@ test('roles can compare levels correctly', function () {
     expect($admin->isHigherThan($editor))->toBeTrue();
     expect($admin->isHigherThan($viewer))->toBeTrue();
     expect($editor->isHigherThan($viewer))->toBeTrue();
-    
+
     expect($viewer->isLowerThan($editor))->toBeTrue();
     expect($viewer->isLowerThan($admin))->toBeTrue();
     expect($editor->isLowerThan($admin))->toBeTrue();
-    
+
     expect($admin->isEqualTo($admin))->toBeTrue();
     expect($admin->isEqualTo($editor))->toBeFalse();
 });
 
 test('roles generate keys properly', function () {
     $admin = new TestAdmin();
-    
+
     expect($admin::getPlainKey())->toBe('test_admin');
     expect($admin::getDbKey())->not()->toBeEmpty();
     expect($admin::getDbKey())->not()->toBe('test_admin'); // Should be different when not in test mode
@@ -59,7 +59,7 @@ test('role hierarchy methods work', function () {
     expect($admin->isAtLeast($editor))->toBeTrue();  // 10 >= 5
     expect($admin->isAtLeast($admin))->toBeTrue();   // 10 >= 10
     expect($editor->isAtLeast($admin))->toBeFalse(); // 5 >= 10 is false
-    
+
     expect($viewer->isLowerThanOrEqual($editor))->toBeTrue(); // 1 <= 5
     expect($admin->isLowerThanOrEqual($viewer))->toBeFalse(); // 10 <= 1 is false
 });

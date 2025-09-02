@@ -15,7 +15,9 @@ class DoctorCommand extends Command
     protected $description = 'Validate Porter RBAC setup and check for configuration issues';
 
     private array $errors = [];
+
     private array $warnings = [];
+
     private array $suggestions = [];
 
     public function handle(): int
@@ -41,21 +43,23 @@ class DoctorCommand extends Command
         $this->info('📄 Checking configuration...');
 
         $configPath = config_path('porter.php');
-        if (!File::exists($configPath)) {
+        if (! File::exists($configPath)) {
             $this->errors[] = 'Porter config file not found. Run "php artisan porter:install" first.';
+
             return;
         }
 
         $config = config('porter');
-        if (!$config) {
+        if (! $config) {
             $this->errors[] = 'Porter configuration not loaded properly.';
+
             return;
         }
 
         // Check required config keys
         $requiredKeys = ['roles', 'table_names', 'cache', 'security'];
         foreach ($requiredKeys as $key) {
-            if (!isset($config[$key])) {
+            if (! isset($config[$key])) {
                 $this->warnings[] = "Missing config key: porter.{$key}";
             }
         }
@@ -71,8 +75,9 @@ class DoctorCommand extends Command
     {
         $this->info('📊 Checking database migrations...');
 
-        if (!Schema::hasTable('roaster')) {
+        if (! Schema::hasTable('roaster')) {
             $this->errors[] = 'Required table "roaster" not found. Run migrations: "php artisan migrate"';
+
             return;
         }
 
@@ -80,13 +85,13 @@ class DoctorCommand extends Command
         $missingColumns = [];
 
         foreach ($requiredColumns as $column) {
-            if (!Schema::hasColumn('roaster', $column)) {
+            if (! Schema::hasColumn('roaster', $column)) {
                 $missingColumns[] = $column;
             }
         }
 
-        if (!empty($missingColumns)) {
-            $this->errors[] = 'Missing columns in roaster table: ' . implode(', ', $missingColumns);
+        if (! empty($missingColumns)) {
+            $this->errors[] = 'Missing columns in roaster table: '.implode(', ', $missingColumns);
         } else {
             $this->info('✅ Database structure verified');
         }
@@ -97,16 +102,18 @@ class DoctorCommand extends Command
         $this->info('🎭 Checking role classes...');
 
         $porterDir = app_path('Porter');
-        if (!File::exists($porterDir)) {
-            $this->warnings[] = 'Porter roles directory not found: ' . $porterDir;
+        if (! File::exists($porterDir)) {
+            $this->warnings[] = 'Porter roles directory not found: '.$porterDir;
             $this->suggestions[] = 'Run "php artisan porter:install" to create default roles';
+
             return;
         }
 
         $roleFiles = File::glob("{$porterDir}/*.php");
         if (empty($roleFiles)) {
-            $this->warnings[] = 'No role classes found in ' . $porterDir;
+            $this->warnings[] = 'No role classes found in '.$porterDir;
             $this->suggestions[] = 'Create roles with "php artisan porter:create RoleName"';
+
             return;
         }
 
@@ -126,16 +133,18 @@ class DoctorCommand extends Command
         $content = File::get($file);
 
         // Check basic structure
-        if (!str_contains($content, 'extends BaseRole')) {
+        if (! str_contains($content, 'extends BaseRole')) {
             $this->errors[] = "Role {$filename} does not extend BaseRole";
+
             return false;
         }
 
         // Check required methods
         $requiredMethods = ['getName', 'getLevel'];
         foreach ($requiredMethods as $method) {
-            if (!str_contains($content, "function {$method}()")) {
+            if (! str_contains($content, "function {$method}()")) {
                 $this->errors[] = "Role {$filename} missing required method: {$method}()";
+
                 return false;
             }
         }
@@ -148,12 +157,12 @@ class DoctorCommand extends Command
         $this->info('🔍 Checking for role duplicates...');
 
         $porterDir = app_path('Porter');
-        if (!File::exists($porterDir)) {
+        if (! File::exists($porterDir)) {
             return;
         }
 
         $roles = $this->extractRoleData($porterDir);
-        
+
         // Check for duplicate names
         $nameGroups = [];
         foreach ($roles as $role) {
@@ -162,7 +171,7 @@ class DoctorCommand extends Command
 
         foreach ($nameGroups as $name => $files) {
             if (count($files) > 1) {
-                $this->errors[] = "Duplicate role name '{$name}' found in: " . implode(', ', $files);
+                $this->errors[] = "Duplicate role name '{$name}' found in: ".implode(', ', $files);
             }
         }
 
@@ -172,7 +181,7 @@ class DoctorCommand extends Command
             if ($role['level'] !== null) {
                 $levelGroups[$role['level']][] = [
                     'name' => $role['name'],
-                    'file' => $role['file']
+                    'file' => $role['file'],
                 ];
             }
         }
@@ -180,7 +189,7 @@ class DoctorCommand extends Command
         foreach ($levelGroups as $level => $roleData) {
             if (count($roleData) > 1) {
                 $names = array_column($roleData, 'name');
-                $this->errors[] = "Duplicate role level '{$level}' used by: " . implode(', ', $names);
+                $this->errors[] = "Duplicate role level '{$level}' used by: ".implode(', ', $names);
             }
         }
 
@@ -211,9 +220,9 @@ class DoctorCommand extends Command
             }
 
             $roles[] = [
-                'file' => $filename . '.php',
+                'file' => $filename.'.php',
                 'name' => $name ?: $filename,
-                'level' => $level
+                'level' => $level,
             ];
         }
 
@@ -226,26 +235,26 @@ class DoctorCommand extends Command
 
         $configRoles = config('porter.roles', []);
         $porterDir = app_path('Porter');
-        
-        if (!File::exists($porterDir)) {
+
+        if (! File::exists($porterDir)) {
             return;
         }
 
         $fileRoles = File::glob("{$porterDir}/*.php");
         $fileRoleNames = array_map(function ($file) {
-            return 'App\\Porter\\' . pathinfo($file, PATHINFO_FILENAME);
+            return 'App\\Porter\\'.pathinfo($file, PATHINFO_FILENAME);
         }, $fileRoles);
 
         // Check if config roles exist as files
         foreach ($configRoles as $configRole) {
-            if (!in_array($configRole, $fileRoleNames)) {
+            if (! in_array($configRole, $fileRoleNames)) {
                 $this->warnings[] = "Role configured but file missing: {$configRole}";
             }
         }
 
         // Check if file roles are configured
         foreach ($fileRoleNames as $fileRole) {
-            if (!in_array($fileRole, $configRoles)) {
+            if (! in_array($fileRole, $configRoles)) {
                 $this->suggestions[] = "Role file exists but not configured: {$fileRole}";
                 $this->suggestions[] = "Add '{$fileRole}' to your config/porter.php roles array";
             }
@@ -260,10 +269,11 @@ class DoctorCommand extends Command
 
         if (empty($this->errors) && empty($this->warnings)) {
             $this->info('🎉 Perfect! Porter RBAC is properly configured.');
+
             return;
         }
 
-        if (!empty($this->errors)) {
+        if (! empty($this->errors)) {
             $this->error('❌ ERRORS FOUND:');
             foreach ($this->errors as $error) {
                 $this->error("  • {$error}");
@@ -271,7 +281,7 @@ class DoctorCommand extends Command
             $this->newLine();
         }
 
-        if (!empty($this->warnings)) {
+        if (! empty($this->warnings)) {
             $this->warn('⚠️  WARNINGS:');
             foreach ($this->warnings as $warning) {
                 $this->warn("  • {$warning}");
@@ -279,7 +289,7 @@ class DoctorCommand extends Command
             $this->newLine();
         }
 
-        if (!empty($this->suggestions)) {
+        if (! empty($this->suggestions)) {
             $this->info('💡 SUGGESTIONS:');
             foreach ($this->suggestions as $suggestion) {
                 $this->info("  • {$suggestion}");
@@ -287,7 +297,7 @@ class DoctorCommand extends Command
             $this->newLine();
         }
 
-        if (!empty($this->errors)) {
+        if (! empty($this->errors)) {
             $this->error('🚨 Please fix the errors above before using Porter RBAC.');
         } else {
             $this->info('✅ No critical issues found. Porter RBAC should work properly.');

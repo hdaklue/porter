@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Hdaklue\Porter\Roles;
 
 use Hdaklue\Porter\Concerns\HasRoleHierarchy;
-use Hdaklue\Porter\Contracts\RoleInterface;
+use Hdaklue\Porter\Contracts\RoleContract;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-abstract class BaseRole implements RoleInterface
+abstract class BaseRole implements RoleContract
 {
     use HasRoleHierarchy;
 
@@ -186,7 +186,7 @@ abstract class BaseRole implements RoleInterface
     /**
      * Get roles lower than or equal to given role.
      */
-    public static function whereLowerThanOrEqual(RoleInterface $role): Collection
+    public static function whereLowerThanOrEqual(RoleContract $role): Collection
     {
         return collect(static::all())
             ->filter(fn ($r) => $r->isLowerThanOrEqual($role))
@@ -196,7 +196,7 @@ abstract class BaseRole implements RoleInterface
     /**
      * Get roles lower than or equal to given role as array with value/label structure.
      */
-    public static function getRolesLowerThanOrEqual(RoleInterface $role): Collection
+    public static function getRolesLowerThanOrEqual(RoleContract $role): Collection
     {
         return collect(static::all())
             ->reject(fn ($r) => $r->getLevel() > $role->getLevel())
