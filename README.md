@@ -58,7 +58,7 @@ I believe in:
 - **⚡ Performance matters** - Database operations should be minimal and fast
 - **🎨 Laravel integration** - Work seamlessly with Gates, Policies, and Blade
 - **🔧 Developer experience** - Clean APIs that feel natural to use
-- **📈 Scalability** - Architecture that grows with your application
+- **📈 Scalability** - Architecture that grows with your application. By encapsulating role logic in PHP classes, Porter reduces database load and improves execution speed, enabling more efficient scaling.
 
 --- 
 
@@ -106,15 +106,11 @@ I want to build what YOU need most. Please share your feedback on:
 
 #### 💬 **Community Feedback Options:**
 
-I'm also looking for input on the best way to gather community feedback. Should we use:
+We welcome your feedback! Please use:
 
-- **GitHub Discussions** for ongoing feature conversations?
-- **Project Wiki** for collaborative roadmap planning?
-- **Feature Request Templates** with voting mechanisms?
-- **Discord/Slack Community** for real-time discussions?
-- **Monthly Community Calls** for direct feedback sessions?
-
-**What works best for you as a developer?** Your input on the feedback process itself will help shape how I collaborate going forward.
+- **GitHub Discussions** for ongoing feature conversations.
+- **Project Wiki** for collaborative roadmap planning.
+- **GitHub Issues** for bug reports and feature requests.
 
 #### 🎖️ **Recognition**
 
@@ -202,19 +198,19 @@ This section provides a quick overview and detailed examples of how to integrate
 ### Basic Role Assignment
 
 ```php
-use Hdaklue\Porter\RoleManager;
+use Hdaklue\Porter\Facades\Porter;
 
 // Assign role
-RoleManager::assign($user, $project, 'admin');
+Porter::assign($user, $project, 'admin');
 
 // Check role
 $isAdmin = $user->hasRoleOn($project, 'admin');
 
 // Remove role
-RoleManager::remove($user, $project);
+Porter::remove($user, $project);
 
 // Change role
-RoleManager::changeRoleOn($user, $project, 'editor');
+Porter::changeRoleOn($user, $project, 'editor');
 ```
 
 ### Create Your Role Classes
@@ -269,12 +265,12 @@ final class ProjectManager extends BaseRole
 
 ```php
 // Organization-level roles
-RoleManager::assign($user, $organization, 'admin');
-RoleManager::assign($manager, $organization, 'manager');
+Porter::assign($user, $organization, 'admin');
+Porter::assign($manager, $organization, 'manager');
 
 // Project-level roles within organization
-RoleManager::assign($developer, $project, 'contributor');
-RoleManager::assign($lead, $project, 'project_lead');
+Porter::assign($developer, $project, 'contributor');
+Porter::assign($lead, $project, 'project_lead');
 
 // Check hierarchical access
 if ($user->hasRoleOn($organization, 'admin')) {
@@ -286,23 +282,23 @@ if ($user->hasRoleOn($organization, 'admin')) {
 
 ```php
 // Store management
-RoleManager::assign($storeOwner, $store, 'owner');
-RoleManager::assign($manager, $store, 'manager');
-RoleManager::assign($cashier, $store, 'cashier');
+Porter::assign($storeOwner, $store, 'owner');
+Porter::assign($manager, $store, 'manager');
+Porter::assign($cashier, $store, 'cashier');
 
 // Product catalog management
-RoleManager::assign($catalogManager, $catalog, 'catalog_manager');
+Porter::assign($catalogManager, $catalog, 'catalog_manager');
 ```
 
 ### Healthcare System
 
 ```php
 // Department roles
-RoleManager::assign($doctor, $department, 'attending_physician');
-RoleManager::assign($nurse, $department, 'head_nurse');
+Porter::assign($doctor, $department, 'attending_physician');
+Porter::assign($nurse, $department, 'head_nurse');
 
 // Patient care assignments
-RoleManager::assign($doctor, $patient, 'primary_care_physician');
+Porter::assign($doctor, $patient, 'primary_care_physician');
 ```
 
 --- 
@@ -408,7 +404,7 @@ final class RegionalManager extends BaseRole
 
 // Usage in business logic
 if ($user->hasRoleOn($company, 'regional_manager')) {
-    $role = RoleManager::getRoleOn($user, $company);
+    $role = Porter::getRoleOn($user, $company);
 
     if ($role->canAccessRegion('north') && $budget <= $role->getMaxBudgetApproval()) {
         // Approve the budget for northern region
@@ -444,6 +440,7 @@ return [
 
     // Security settings
     'security' => [
+        'assignment_strategy' => env('PORTER_ASSIGNMENT_STRATEGY', 'replace'), // 'replace' or 'add'
         'key_storage' => env('PORTER_KEY_STORAGE', 'hashed'),  // 'hashed' or 'plain'
         'auto_generate_keys' => env('PORTER_AUTO_KEYS', true),
     ],
@@ -460,6 +457,9 @@ return [
 
 ```php
 // .env file
+PORTER_ASSIGNMENT_STRATEGY=replace  # Default: Replaces existing roles
+PORTER_ASSIGNMENT_STRATEGY=add      # Adds new roles alongside existing ones
+
 PORTER_KEY_STORAGE=hashed     # Secure (default) - SHA256 hashed role keys
 PORTER_KEY_STORAGE=plain      # Debug mode - Plain text role keys
 
@@ -494,7 +494,7 @@ class ProjectPolicy
 
     public function invite(User $user, Project $project)
     {
-        $role = RoleManager::getRoleOn($user, $project);
+        $role = Porter::getRoleOn($user, $project);
         return $role && $role->getLevel() >= 5; // Manager level or higher
     }
 }

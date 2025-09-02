@@ -113,6 +113,13 @@ return [
     */
     'security' => [
         /*
+         | Configure the assignment strategy when assigning a role.
+         | - 'replace': (Default) Any existing roles for the assignable entity on the roleable entity will be removed before assigning the new role.
+         | - 'add': The new role will be added alongside any existing roles. If the role already exists, no action is taken.
+         */
+        'assignment_strategy' => env('PORTER_ASSIGNMENT_STRATEGY', 'replace'),
+
+        /*
          | Configure how role keys are stored in the database.
          | - 'hashed': (Default) One-way hash for security.
          | - 'plain': Plain text, useful for debugging.

@@ -106,3 +106,42 @@ test('RoleManager fails when assigning non-existent role', function () {
     expect(fn () => $this->roleManager->assign($user, $project, 'nonexistent_role'))
         ->toThrow(DomainException::class, "Role 'nonexistent_role' does not exist.");
 });
+
+test('RoleManager assign method uses replace strategy by default', function () {
+    $user = TestUser::create(['name' => 'John Doe', 'email' => 'john@example.com']);
+    $project = TestProject::create(['name' => 'Test Project']);
+
+    // Assign an initial role
+    $this->roleManager->assign($user, $project, 'test_editor');
+    expect(Roster::count())->toBe(1);
+    expect($this->roleManager->hasRoleOn($user, $project, 'test_editor'))->toBeTrue();
+
+    // Assign a new role, which should replace the old one (default strategy)
+    $this->roleManager->assign($user, $project, 'test_admin');
+
+    // Only the new role should exist
+    expect(Roster::count())->toBe(1);
+    expect($this->roleManager->hasRoleOn($user, $project, 'test_admin'))->toBeTrue();
+    expect($this->roleManager->hasRoleOn($user, $project, 'test_editor'))->toBeFalse();
+});
+
+test('RoleManager assign method uses add strategy when configured', function () {
+    $user = TestUser::create(['name' => 'John Doe', 'email' => 'john@example.com']);
+    $project = TestProject::create(['name' => 'Test Project']);
+
+    // Set assignment strategy to 'add'
+    config(['porter.security.assignment_strategy' => 'add']);
+
+    // Assign first role
+    $this->roleManager->assign($user, $project, 'test_editor');
+    expect(Roster::count())->toBe(1);
+    expect($this->roleManager->hasRoleOn($user, $project, 'test_editor'))->toBeTrue();
+
+    // Assign second role
+    $this->roleManager->assign($user, $project, 'test_admin');
+
+    // Both roles should now exist
+    expect(Roster::count())->toBe(2);
+    expect($this->roleManager->hasRoleOn($user, $project, 'test_editor'))->toBeTrue();
+    expect($this->roleManager->hasRoleOn($user, $project, 'test_admin'))->toBeTrue();
+});

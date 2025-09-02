@@ -44,10 +44,18 @@ final class RoleManager implements RoleManagerContract
     {
         $this->ensureRoleExists($roleKey);
 
+        $assignmentStrategy = config('porter.security.assignment_strategy', 'replace');
+
+        // If strategy is 'replace', remove all existing roles for this assignable on this roleable
+        if ($assignmentStrategy === 'replace') {
+            $this->remove($user, $target);
+        }
+
         // Get encrypted key for storage
         $role = RoleFactory::make($roleKey);
         $encryptedKey = $role::getDbKey();
 
+        // For 'add' strategy, firstOrCreate will handle duplicates. For 'replace', it will create the new one.
         $assignment = Roster::firstOrCreate([
             'assignable_type' => $user->getMorphClass(),
             'assignable_id' => $user->getKey(),
