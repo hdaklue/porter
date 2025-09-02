@@ -8,8 +8,8 @@ use Eloquent;
 use Exception;
 use Hdaklue\Porter\Contracts\RoleInterface;
 use Hdaklue\Porter\RoleFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\MorphPivot;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
@@ -35,7 +35,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  *
  * @mixin Eloquent
  */
-final class Roster extends MorphPivot
+final class Roster extends Model
 {
     public $timestamps = false;
 
@@ -71,9 +71,11 @@ final class Roster extends MorphPivot
         return $this->morphTo();
     }
 
-    public function role(): RoleInterface
+    protected function role(): Attribute
     {
-        return RoleFactory::tryMake($this->getRoleDBKey());
+        return Attribute::make(
+            get: fn (mixed $value, array $attributes) => RoleFactory::tryMake($this->getRoleDBKey()),
+        );
     }
 
     public function getTable(): string

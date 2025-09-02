@@ -8,7 +8,6 @@ use Hdaklue\Porter\Concerns\HasRoleHierarchy;
 use Hdaklue\Porter\Contracts\RoleInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Crypt;
 
 abstract class BaseRole implements RoleInterface
 {
@@ -32,7 +31,7 @@ abstract class BaseRole implements RoleInterface
     {
         $className = class_basename(static::class);
         $plainKey = Str::snake($className);
-        
+
         return static::encryptRoleKey($plainKey);
     }
 
@@ -52,6 +51,7 @@ abstract class BaseRole implements RoleInterface
     {
         try {
             $plainKey = static::decryptRoleKey($encryptedKey);
+
             return static::fromPlainKey($plainKey);
         } catch (\Exception) {
             return null;
@@ -64,7 +64,7 @@ abstract class BaseRole implements RoleInterface
     public static function fromPlainKey(string $plainKey): ?static
     {
         $roles = static::all();
-        
+
         foreach ($roles as $role) {
             if ($role::getPlainKey() === $plainKey) {
                 return $role;
@@ -80,26 +80,18 @@ abstract class BaseRole implements RoleInterface
     protected static function encryptRoleKey(string $plainKey): string
     {
         // Check if we have Laravel config available
-        if (!function_exists('config') || !app()->bound('config')) {
+        if (! function_exists('config') || ! app()->bound('config')) {
             // Return plain key when running outside Laravel context
-            return 'test_' . $plainKey;
+            return 'test_'.$plainKey;
         }
-        
-        $useEncryption = config('porter.security.encrypt_role_keys', true);
-        $useHashing = config('porter.security.hash_role_keys', false);
-        
-        if ($useEncryption && !$useHashing) {
-            // Encrypt using Laravel's encryption
-            return Crypt::encryptString($plainKey);
-        } elseif ($useHashing && !$useEncryption) {
+
+        $storage = config('porter.security.key_storage', 'hashed');
+
+        if ($storage === 'hashed') {
             // Hash using app key as salt for security
-            return hash('sha256', $plainKey . config('app.key'));
-        } elseif ($useEncryption && $useHashing) {
-            // Double protection: encrypt then hash
-            $encrypted = Crypt::encryptString($plainKey);
-            return hash('sha256', $encrypted . config('app.key'));
+            return hash('sha256', $plainKey.config('app.key'));
         }
-        
+
         // Fallback: just return plain key (for development/testing)
         return $plainKey;
     }
@@ -110,28 +102,22 @@ abstract class BaseRole implements RoleInterface
     protected static function decryptRoleKey(string $encryptedKey): string
     {
         // Check if we have Laravel config available
-        if (!function_exists('config') || !app()->bound('config')) {
+        if (! function_exists('config') || ! app()->bound('config')) {
             // Handle test keys when running outside Laravel context
             if (str_starts_with($encryptedKey, 'test_')) {
                 return substr($encryptedKey, 5); // Remove 'test_' prefix
             }
+
             return $encryptedKey;
         }
-        
-        $useEncryption = config('porter.security.encrypt_role_keys', true);
-        $useHashing = config('porter.security.hash_role_keys', false);
-        
-        if ($useEncryption && !$useHashing) {
-            // Simple decryption
-            return Crypt::decryptString($encryptedKey);
-        } elseif ($useHashing && !$useEncryption) {
+
+        $storage = config('porter.security.key_storage', 'hashed');
+
+        if ($storage === 'hashed') {
             // Can't decrypt hash, need to verify by trying all roles
             return static::findPlainKeyByHash($encryptedKey);
-        } elseif ($useEncryption && $useHashing) {
-            // Can't decrypt hash, need to verify by trying all roles  
-            return static::findPlainKeyByHash($encryptedKey);
         }
-        
+
         // Fallback: return as-is
         return $encryptedKey;
     }
@@ -142,18 +128,18 @@ abstract class BaseRole implements RoleInterface
     protected static function findPlainKeyByHash(string $targetHash): string
     {
         $roles = static::all();
-        
+
         foreach ($roles as $role) {
             $plainKey = $role::getPlainKey();
             if (static::encryptRoleKey($plainKey) === $targetHash) {
                 return $plainKey;
             }
         }
-        
+
         throw new \InvalidArgumentException('Invalid role key hash');
     }
 
-    /**
+    /**it
      * Get human-readable label for this role.
      */
     public function getLabel(): string
@@ -175,7 +161,7 @@ abstract class BaseRole implements RoleInterface
     public static function make(string $name): static
     {
         $roles = static::all();
-        
+
         foreach ($roles as $role) {
             if ($role->getName() === $name) {
                 return $role;
@@ -224,7 +210,7 @@ abstract class BaseRole implements RoleInterface
     public static function all(): array
     {
         // Check if we have Laravel config available
-        if (!function_exists('config') || !app()->bound('config')) {
+        if (! function_exists('config') || ! app()->bound('config')) {
             // Return test fixture roles when running outside Laravel context
             $roleClasses = [
                 \Hdaklue\Porter\Tests\Fixtures\TestAdmin::class,
@@ -242,6 +228,6 @@ abstract class BaseRole implements RoleInterface
             ]);
         }
 
-        return array_map(fn($class) => new $class(), $roleClasses);
+        return array_map(fn ($class) => new $class(), $roleClasses);
     }
 }

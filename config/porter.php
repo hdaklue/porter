@@ -91,18 +91,11 @@ return [
     */
     'security' => [
         /*
-         | Encrypt role keys using Laravel's encryption before storing in database.
-         | This prevents role enumeration even with database access.
-         | Requires APP_KEY to be set properly.
+         | Configure how role keys are stored in the database.
+         | - 'hashed': (Default) One-way hash for security.
+         | - 'plain': Plain text, useful for debugging.
          */
-        'encrypt_role_keys' => env('PORTER_ENCRYPT_KEYS', true),
-
-        /*
-         | Hash role keys using SHA256 + APP_KEY salt before storing.
-         | This provides one-way protection but requires validation by iteration.
-         | Cannot be used with encryption simultaneously.
-         */
-        'hash_role_keys' => env('PORTER_HASH_KEYS', false),
+        'key_storage' => env('PORTER_KEY_STORAGE', 'hashed'),
 
         /*
          | Enable automatic snake_case key generation from role class names.

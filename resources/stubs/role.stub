@@ -10,7 +10,7 @@ final class {{name}} extends BaseRole
 {
     public function getName(): string
     {
-        return '{{name}}';
+        return '{{snake_name}}';
     }
 
     public function getLevel(): int

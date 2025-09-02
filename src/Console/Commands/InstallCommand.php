@@ -6,6 +6,7 @@ namespace Hdaklue\Porter\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class InstallCommand extends Command
 {
@@ -142,47 +143,30 @@ class InstallCommand extends Command
 
         $stub = $this->getRoleStub();
         $content = str_replace(
-            ['{{name}}', '{{level}}', '{{description}}'],
-            [$name, $level, $description],
+            ['{{name}}', '{{level}}', '{{description}}', '{{snake_name}}'],
+            [$name, $level, $description, Str::snake($name)],
             $stub
         );
 
         File::put($filepath, $content);
         $this->info("✅ Created role: {$name} (Level {$level})");
+        $this->info("   🔑 Key: " . $this->generateRoleKey($name));
     }
 
     private function getRoleStub(): string
     {
-        return '<?php
-
-declare(strict_types=1);
-
-namespace App\Porter;
-
-use Hdaklue\Porter\Roles\BaseRole;
-
-final class {{name}} extends BaseRole
-{
-    public function getName(): string
-    {
-        return \'{{name}}\';
+        return File::get(__DIR__ . '/../../../resources/stubs/role.stub');
     }
 
-    public function getLevel(): int
+    private function generateRoleKey(string $name): string
     {
-        return {{level}};
-    }
+        $plainKey = Str::snake($name);
+        $storage = config('porter.security.key_storage', 'hashed');
 
-    public function getLabel(): string
-    {
-        return \'{{description}}\';
-    }
+        if ($storage === 'hashed') {
+            return hash('sha256', $plainKey.config('app.key'));
+        }
 
-    public function getDescription(): string
-    {
-        return \'{{description}}\';
-    }
-}
-';
+        return $plainKey;
     }
 }

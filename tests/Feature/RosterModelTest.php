@@ -78,7 +78,7 @@ test('Roster model retrieves role instance from role_key', function () {
         'role_key' => $encryptedKey,
     ]);
 
-    $role = $roster->role();
+    $role = $roster->role;
     expect($role)->toBeInstanceOf(TestAdmin::class);
     expect($role->getName())->toBe('TestAdmin');
 });

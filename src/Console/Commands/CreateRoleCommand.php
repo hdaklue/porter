@@ -37,6 +37,7 @@ class CreateRoleCommand extends Command
         $this->info("📁 Location: " . app_path("Porter/{$name}.php"));
         $this->info("🔢 Level: {$level}");
         $this->info("📝 Description: {$description}");
+        $this->info("🔑 Key: " . $this->generateRoleKey($name));
         
         $this->newLine();
         $this->info("Don't forget to:");
@@ -185,8 +186,8 @@ class CreateRoleCommand extends Command
         $stub = $this->getRoleStub();
         
         $content = str_replace(
-            ['{{name}}', '{{level}}', '{{description}}'],
-            [$name, $level, $description],
+            ['{{name}}', '{{level}}', '{{description}}', '{{snake_name}}'],
+            [$name, $level, $description, Str::snake($name)],
             $stub
         );
 
@@ -195,36 +196,18 @@ class CreateRoleCommand extends Command
 
     private function getRoleStub(): string
     {
-        return '<?php
-
-declare(strict_types=1);
-
-namespace App\Porter;
-
-use Hdaklue\Porter\Roles\BaseRole;
-
-final class {{name}} extends BaseRole
-{
-    public function getName(): string
-    {
-        return \'{{name}}\';
+        return File::get(__DIR__ . '/../../../resources/stubs/role.stub');
     }
 
-    public function getLevel(): int
+    private function generateRoleKey(string $name): string
     {
-        return {{level}};
-    }
+        $plainKey = Str::snake($name);
+        $storage = config('porter.security.key_storage', 'hashed');
 
-    public function getLabel(): string
-    {
-        return \'{{description}}\';
-    }
+        if ($storage === 'hashed') {
+            return hash('sha256', $plainKey.config('app.key'));
+        }
 
-    public function getDescription(): string
-    {
-        return \'{{description}}\';
-    }
-}
-';
+        return $plainKey;
     }
 }
