@@ -176,9 +176,10 @@ class InstallCommand extends Command
         }
 
         $stub = $this->getRoleStub();
+        $namespace = config('porter.namespace', 'App\\Porter');
         $content = str_replace(
-            ['{{name}}', '{{level}}', '{{description}}', '{{snake_name}}'],
-            [$name, $level, $description, Str::snake($name)],
+            ['{{name}}', '{{level}}', '{{description}}', '{{snake_name}}', '{{namespace}}'],
+            [$name, $level, $description, Str::snake($name), $namespace],
             $stub
         );
 
