@@ -73,6 +73,11 @@ class RoleValidator
      */
     public static function getExistingRoles(string $directory): array
     {
+        // Bypass cache in testing environment to ensure fresh file reads
+        if (app()->environment('testing')) {
+            return self::getExistingRolesFallback($directory);
+        }
+
         $cacheKey = "porter_roles_" . md5($directory);
 
         // Get roles directly using file system to avoid circular dependency

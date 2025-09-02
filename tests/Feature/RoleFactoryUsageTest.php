@@ -77,9 +77,10 @@ test('it demonstrates the new dynamic role factory usage', function () {
 
     // Demonstrate usage with concern traits (type-safe!)
     // Note: In a real app, you'd use these roles with your entities like:
-    // $user->assign($project, RoleFactory::projectManager());
-    // $user->hasAssignmentOn($project, RoleFactory::admin());
-});
+    // $user->assign($project, Porter::projectManager());
+    // $user->hasAssignmentOn($project, Porter::admin());
+})->inSeparateProcess();
+    
 
 test('it allows configurable namespace and directory', function () {
     // This test demonstrates that the factory reads from config

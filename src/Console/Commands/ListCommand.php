@@ -222,10 +222,6 @@ class ListCommand extends Command
         if (! $role['valid']) {
             $this->line("   <fg=red>⚠️  Issues found - run 'porter:doctor' for details</fg=red>");
         }
-
-        if (! $role['configured']) {
-            $this->line('   <fg=yellow>💡 Add to config/porter.php roles array</fg=yellow>');
-        }
     }
 
     private function getRoleStatus(array $role): string
@@ -234,11 +230,7 @@ class ListCommand extends Command
             return '<fg=red>Invalid</fg=red>';
         }
 
-        if (! $role['configured']) {
-            return '<fg=yellow>Not Configured</fg=yellow>';
-        }
-
-        return '<fg=green>Active</fg=green>';
+        return '<fg=green>Valid</fg=green>';
     }
 
     private function displaySummary(array $roles): void
@@ -248,8 +240,6 @@ class ListCommand extends Command
 
         $total = count($roles);
         $valid = count(array_filter($roles, fn ($r) => $r['valid']));
-        $configured = count(array_filter($roles, fn ($r) => $r['configured']));
-        $active = count(array_filter($roles, fn ($r) => $r['valid'] && $r['configured']));
 
         $levels = array_filter(array_column($roles, 'level'));
         $minLevel = ! empty($levels) ? min($levels) : 'N/A';
@@ -258,8 +248,6 @@ class ListCommand extends Command
 
         $this->line("  Total Roles: {$total}");
         $this->line("  Valid Files: {$valid}");
-        $this->line("  Configured: {$configured}");
-        $this->line("  Active: <fg=green>{$active}</fg=green>");
         $this->line("  Level Range: {$minLevel} - {$maxLevel}");
 
         if (! empty($duplicateLevels)) {
