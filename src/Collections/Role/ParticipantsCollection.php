@@ -2,42 +2,52 @@
 
 declare(strict_types=1);
 
-namespace Hdaklue\LaraRbac\Collections\Role;
+namespace Hdaklue\Porter\Collections\Role;
 
-use Hdaklue\LaraRbac\Contracts\Role\AssignableEntity;
-use Hdaklue\LaraRbac\Enums\Role\RoleEnum;
+use Hdaklue\Porter\Contracts\AssignableEntity;
 use Illuminate\Support\Collection;
 
-final class ParticipantsCollection extends Collection
+final class ParticipantsCollection
 {
+    public function __construct(private Collection $participants)
+    {
+    }
+    /**
+     * Get the underlying collection.
+     */
+    public function toCollection(): Collection
+    {
+        return $this->participants;
+    }
+
     /**
      * Convert the collection to a collection of basic participant data.
-     *
-     * @return self<array{participant_id: int, participant_name: string, role_id: int, role_name: string, role_label: string, role_description: string}>
      */
-    public function asBasicArray(): self
+    public function asBasicArray(): Collection
     {
-        return $this->map(fn ($item) => [
-            'participant_id' => $item->model->getKey(),
-            'participant_name' => $item->model->getAttribute('name'),
-            'role_id' => $item->role->getKey(),
-            'role_name' => $item->role->getAttribute('name'),
-            'role_label' => RoleEnum::from($item->role->getAttribute('name'))->getLabel(),
-            'role_description' => RoleEnum::from($item->role->getAttribute('name'))->getDescription(),
+        return $this->participants->map(fn ($item) => [
+            'participant_id' => $item->assignable->getKey(),
+            'participant_name' => $item->assignable->getAttribute('name'),
+            'role_key' => $item->role_key,
+            'role_name' => $item->role()?->getName(),
+            'role_label' => $item->role()?->getLabel(),
+            'role_description' => $item->role()?->getDescription(),
         ]);
     }
 
     public function getParticipantIds(): Collection
     {
-        return collect($this->pluck('model.id'));
+        return $this->participants->pluck('assignable.id');
     }
 
     public function getParticipantsAsSelectArray(): array
     {
-        return $this->pluck('model')->mapWithKeys(fn ($model) => [$model->getKey() => $model->getAttribute('name')])->toArray();
+        return $this->participants->pluck('assignable')->mapWithKeys(fn ($model) => 
+            [$model->getKey() => $model->getAttribute('name')]
+        )->toArray();
     }
 
-    public function exceptAssignable(AssignableEntity|string|array $userId): self
+    public function exceptAssignable(AssignableEntity|string|array $userId): Collection
     {
         if ($userId instanceof AssignableEntity) {
             $userId = [$userId->getKey()];
@@ -47,6 +57,16 @@ final class ParticipantsCollection extends Collection
             $userId = [$userId];
         }
 
-        return $this->reject(fn ($item): bool => in_array($item->model->getKey(), $userId));
+        return $this->participants->reject(fn ($item): bool => 
+            in_array($item->assignable->getKey(), $userId)
+        );
+    }
+
+    /**
+     * Filter participants by role key.
+     */
+    public function filter(callable $callback): Collection
+    {
+        return $this->participants->filter($callback);
     }
 }

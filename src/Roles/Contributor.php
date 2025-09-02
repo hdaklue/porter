@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Hdaklue\LaraRbac\Roles;
+namespace Hdaklue\Porter\Roles;
 
 final class Contributor extends BaseRole
 {

@@ -2,4 +2,7 @@
 
 declare(strict_types=1);
 
-uses(Hdaklue\LaraRbac\Tests\TestCase::class)->in('Feature', 'Unit');
+uses(Hdaklue\Porter\Tests\TestCase::class)->in('Feature');
+
+// Simple unit tests don't need the full Laravel application
+// uses()->in('Unit');

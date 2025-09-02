@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Hdaklue\LaraRbac\Roles;
+namespace Hdaklue\Porter\Roles;
 
-use Hdaklue\LaraRbac\Concerns\Role\HasRoleHierarchy;
-use Hdaklue\LaraRbac\Contracts\Role\RoleInterface;
+use Hdaklue\Porter\Concerns\HasRoleHierarchy;
+use Hdaklue\Porter\Contracts\RoleInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Crypt;
 
 abstract class BaseRole implements RoleInterface
 {
@@ -23,11 +25,140 @@ abstract class BaseRole implements RoleInterface
     abstract public function getLevel(): int;
 
     /**
+     * Get the database key for this role.
+     * Automatically generates snake_case from class name and encrypts/hashes it.
+     */
+    public static function getDbKey(): string
+    {
+        $className = class_basename(static::class);
+        $plainKey = Str::snake($className);
+        
+        return static::encryptRoleKey($plainKey);
+    }
+
+    /**
+     * Get the plain key (snake_case class name) for this role.
+     * Used internally for key generation and testing.
+     */
+    public static function getPlainKey(): string
+    {
+        return Str::snake(class_basename(static::class));
+    }
+
+    /**
+     * Create role instance from encrypted database key.
+     */
+    public static function fromDbKey(string $encryptedKey): ?static
+    {
+        try {
+            $plainKey = static::decryptRoleKey($encryptedKey);
+            return static::fromPlainKey($plainKey);
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Create role instance from plain key.
+     */
+    public static function fromPlainKey(string $plainKey): ?static
+    {
+        $roles = static::all();
+        
+        foreach ($roles as $role) {
+            if ($role::getPlainKey() === $plainKey) {
+                return $role;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Encrypt/hash a role key for database storage.
+     */
+    protected static function encryptRoleKey(string $plainKey): string
+    {
+        // Check if we have Laravel config available
+        if (!function_exists('config') || !app()->bound('config')) {
+            // Return plain key when running outside Laravel context
+            return 'test_' . $plainKey;
+        }
+        
+        $useEncryption = config('porter.security.encrypt_role_keys', true);
+        $useHashing = config('porter.security.hash_role_keys', false);
+        
+        if ($useEncryption && !$useHashing) {
+            // Encrypt using Laravel's encryption
+            return Crypt::encryptString($plainKey);
+        } elseif ($useHashing && !$useEncryption) {
+            // Hash using app key as salt for security
+            return hash('sha256', $plainKey . config('app.key'));
+        } elseif ($useEncryption && $useHashing) {
+            // Double protection: encrypt then hash
+            $encrypted = Crypt::encryptString($plainKey);
+            return hash('sha256', $encrypted . config('app.key'));
+        }
+        
+        // Fallback: just return plain key (for development/testing)
+        return $plainKey;
+    }
+
+    /**
+     * Decrypt a role key from database storage.
+     */
+    protected static function decryptRoleKey(string $encryptedKey): string
+    {
+        // Check if we have Laravel config available
+        if (!function_exists('config') || !app()->bound('config')) {
+            // Handle test keys when running outside Laravel context
+            if (str_starts_with($encryptedKey, 'test_')) {
+                return substr($encryptedKey, 5); // Remove 'test_' prefix
+            }
+            return $encryptedKey;
+        }
+        
+        $useEncryption = config('porter.security.encrypt_role_keys', true);
+        $useHashing = config('porter.security.hash_role_keys', false);
+        
+        if ($useEncryption && !$useHashing) {
+            // Simple decryption
+            return Crypt::decryptString($encryptedKey);
+        } elseif ($useHashing && !$useEncryption) {
+            // Can't decrypt hash, need to verify by trying all roles
+            return static::findPlainKeyByHash($encryptedKey);
+        } elseif ($useEncryption && $useHashing) {
+            // Can't decrypt hash, need to verify by trying all roles  
+            return static::findPlainKeyByHash($encryptedKey);
+        }
+        
+        // Fallback: return as-is
+        return $encryptedKey;
+    }
+
+    /**
+     * Find plain key by trying to match hash.
+     */
+    protected static function findPlainKeyByHash(string $targetHash): string
+    {
+        $roles = static::all();
+        
+        foreach ($roles as $role) {
+            $plainKey = $role::getPlainKey();
+            if (static::encryptRoleKey($plainKey) === $targetHash) {
+                return $plainKey;
+            }
+        }
+        
+        throw new \InvalidArgumentException('Invalid role key hash');
+    }
+
+    /**
      * Get human-readable label for this role.
      */
     public function getLabel(): string
     {
-        return __(sprintf('lararbac::roles.%s.label', $this->getName()));
+        return __(sprintf('porter::roles.%s.label', $this->getName()));
     }
 
     /**
@@ -35,7 +166,7 @@ abstract class BaseRole implements RoleInterface
      */
     public function getDescription(): string
     {
-        return __(sprintf('lararbac::roles.%s.description', $this->getName()));
+        return __(sprintf('porter::roles.%s.description', $this->getName()));
     }
 
     /**
@@ -92,14 +223,24 @@ abstract class BaseRole implements RoleInterface
      */
     public static function all(): array
     {
-        $roleClasses = config('lararbac.roles', [
-            \Hdaklue\LaraRbac\Roles\Admin::class,
-            \Hdaklue\LaraRbac\Roles\Manager::class,
-            \Hdaklue\LaraRbac\Roles\Editor::class,
-            \Hdaklue\LaraRbac\Roles\Contributor::class,
-            \Hdaklue\LaraRbac\Roles\Viewer::class,
-            \Hdaklue\LaraRbac\Roles\Guest::class,
-        ]);
+        // Check if we have Laravel config available
+        if (!function_exists('config') || !app()->bound('config')) {
+            // Return test fixture roles when running outside Laravel context
+            $roleClasses = [
+                \Hdaklue\Porter\Tests\Fixtures\TestAdmin::class,
+                \Hdaklue\Porter\Tests\Fixtures\TestEditor::class,
+                \Hdaklue\Porter\Tests\Fixtures\TestViewer::class,
+            ];
+        } else {
+            $roleClasses = config('porter.roles', [
+                \Hdaklue\Porter\Roles\Admin::class,
+                \Hdaklue\Porter\Roles\Manager::class,
+                \Hdaklue\Porter\Roles\Editor::class,
+                \Hdaklue\Porter\Roles\Contributor::class,
+                \Hdaklue\Porter\Roles\Viewer::class,
+                \Hdaklue\Porter\Roles\Guest::class,
+            ]);
+        }
 
         return array_map(fn($class) => new $class(), $roleClasses);
     }

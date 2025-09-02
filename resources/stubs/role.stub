@@ -1,0 +1,30 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Porter;
+
+use Hdaklue\Porter\Roles\BaseRole;
+
+final class {{name}} extends BaseRole
+{
+    public function getName(): string
+    {
+        return '{{name}}';
+    }
+
+    public function getLevel(): int
+    {
+        return {{level}};
+    }
+
+    public function getLabel(): string
+    {
+        return '{{description}}';
+    }
+
+    public function getDescription(): string
+    {
+        return '{{description}}';
+    }
+}

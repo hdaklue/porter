@@ -1,0 +1,75 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Hdaklue\Porter\Concerns;
+
+use Hdaklue\Porter\Contracts\RoleableEntity;
+use Hdaklue\Porter\Contracts\RoleInterface;
+use Hdaklue\Porter\Facades\Porter;
+use Hdaklue\Porter\Models\Roster;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Collection;
+
+trait CanBeAssignedToEntity
+{
+    /**
+     * roleAssignments.
+     */
+    public function roleAssignments(): MorphMany
+    {
+        return $this->morphMany(config('porter.models.roster', Roster::class), 'assignable');
+    }
+
+    public function getAssignedEntitiesByType(string $type): Collection
+    {
+        return Porter::getAssignedEntitiesByType($this, $type);
+    }
+
+    /**
+     * hasAssignmentOn.
+     */
+    public function hasAssignmentOn(RoleableEntity $target, string|RoleInterface $roleName): bool
+    {
+        return Porter::hasRoleOn($this, $target, $roleName);
+
+    }
+
+    /**
+     * isAssignedTo.
+     */
+    public function isAssignedTo(RoleableEntity $entity): bool
+    {
+        return Porter::hasAnyRoleOn($this, $entity);
+
+    }
+
+    /**
+     * getAssignmentOn.
+     */
+    public function getAssignmentOn(RoleableEntity $entity): ?RoleInterface
+    {
+        return Porter::getRoleOn($this, $entity);
+
+    }
+
+    #[Scope]
+    protected function scopeAssignedTo(Builder $builder, RoleableEntity $entity): Builder
+    {
+        return $builder->whereHas('roleAssignments', function ($query) use ($entity) {
+            $query->where('roleable_type', $entity->getMorphClass())
+                ->where('roleable_id', $entity->getKey());
+        });
+    }
+
+    #[Scope]
+    protected function scopeNotAssignedTo(Builder $builder, RoleableEntity $entity): Builder
+    {
+        return $builder->whereDoesntHave('roleAssignments', function ($query) use ($entity) {
+            $query->where('roleable_type', $entity->getMorphClass())
+                ->where('roleable_id', $entity->getKey());
+        });
+    }
+}
