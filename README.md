@@ -79,7 +79,7 @@ Common question: *"Why not use traditional database-based RBAC?"*
 
 ## Roadmap & Community Input
 
-As a **new package**, your feedback directly shapes Porter's future! I am actively seeking community input and suggestions to prioritize features and ensure Porter evolves into the most valuable tool for your Laravel projects.
+As a **new package**, your feedback directly shapes Porter's future! I am actively seeking community input and suggestions to prioritize features and ensure Porter evolves into the most valuable tool for your Laravel app.
 
 ### 🎯 **Potential Features (Vote & Discuss!)**
 
