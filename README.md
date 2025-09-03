@@ -6,6 +6,10 @@ A lightweight, blazing-fast Laravel role-based access control package that treat
 
 > "Current RBAC were made for CMSs."
 
+## 🎥 Video Demos Needed
+
+Porter is seeking a co-maintainer to create video demos and tutorials showcasing the package features and usage. If you're interested in creating educational content for this Laravel package, please contact hassan@daklue.com
+
 --- 
 
 ## Table of Contents
