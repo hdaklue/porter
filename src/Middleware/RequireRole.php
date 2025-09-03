@@ -21,6 +21,12 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
  * Route::get('/admin', AdminController::class)->middleware('porter.role:admin,manager');
  * Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])
  *     ->middleware('porter.role:admin,editor');
+ * 
+ * Any role functionality (requires any role on detected entity):
+ * Route::get('/projects/{project}/dashboard', [ProjectController::class, 'dashboard'])
+ *     ->middleware('porter.role:*');
+ * Route::get('/projects/{project}/activity', [ProjectController::class, 'activity'])
+ *     ->middleware('porter.role:anyrole');
  */
 final class RequireRole
 {
@@ -55,18 +61,23 @@ final class RequireRole
             return $next($request);
         }
 
-        // Check if user has any of the required roles on the target entity
-        $hasRequiredRole = false;
-        foreach ($roles as $roleName) {
-            try {
-                $role = BaseRole::make(trim($roleName));
-                if ($this->roleManager->hasRoleOn($user, $target, $role)) {
-                    $hasRequiredRole = true;
-                    break;
+        // Check for "any role" functionality
+        if (count($roles) === 1 && (trim($roles[0]) === '*' || trim($roles[0]) === 'anyrole')) {
+            $hasRequiredRole = $this->roleManager->hasAnyRoleOn($user, $target);
+        } else {
+            // Check if user has any of the required roles on the target entity
+            $hasRequiredRole = false;
+            foreach ($roles as $roleName) {
+                try {
+                    $role = BaseRole::make(trim($roleName));
+                    if ($this->roleManager->hasRoleOn($user, $target, $role)) {
+                        $hasRequiredRole = true;
+                        break;
+                    }
+                } catch (\InvalidArgumentException) {
+                    // Role doesn't exist, continue checking other roles
+                    continue;
                 }
-            } catch (\InvalidArgumentException) {
-                // Role doesn't exist, continue checking other roles
-                continue;
             }
         }
 

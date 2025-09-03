@@ -22,6 +22,12 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
  *     ->middleware('porter.role_on:project,admin,editor');
  * Route::delete('/organizations/{org}/members/{user}', [MemberController::class, 'destroy'])
  *     ->middleware('porter.role_on:org,admin,manager');
+ * 
+ * Any role functionality:
+ * Route::get('/projects/{project}/dashboard', [ProjectController::class, 'dashboard'])
+ *     ->middleware('porter.role_on:project,*');
+ * Route::get('/projects/{project}/members', [ProjectController::class, 'members'])
+ *     ->middleware('porter.role_on:project,anyrole');
  */
 final class RequireRoleOn
 {
@@ -59,23 +65,29 @@ final class RequireRoleOn
             );
         }
 
-        // Check if user has any of the required roles on the target entity
-        $hasRequiredRole = false;
-        $validRoles = [];
+        // Check for "any role" functionality
+        if (count($roles) === 1 && (trim($roles[0]) === '*' || trim($roles[0]) === 'anyrole')) {
+            $hasRequiredRole = $this->roleManager->hasAnyRoleOn($user, $target);
+            $validRoles = ['anyrole'];
+        } else {
+            // Check if user has any of the required roles on the target entity
+            $hasRequiredRole = false;
+            $validRoles = [];
 
-        foreach ($roles as $roleName) {
-            $roleName = trim($roleName);
-            try {
-                $role = BaseRole::make($roleName);
-                $validRoles[] = $roleName;
+            foreach ($roles as $roleName) {
+                $roleName = trim($roleName);
+                try {
+                    $role = BaseRole::make($roleName);
+                    $validRoles[] = $roleName;
 
-                if ($this->roleManager->hasRoleOn($user, $target, $role)) {
-                    $hasRequiredRole = true;
-                    break;
+                    if ($this->roleManager->hasRoleOn($user, $target, $role)) {
+                        $hasRequiredRole = true;
+                        break;
+                    }
+                } catch (\InvalidArgumentException) {
+                    // Role doesn't exist, skip it
+                    continue;
                 }
-            } catch (\InvalidArgumentException) {
-                // Role doesn't exist, skip it
-                continue;
             }
         }
 

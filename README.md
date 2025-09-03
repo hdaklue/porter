@@ -359,14 +359,79 @@ $this->authorize('update', $project);
     <button>Edit Project</button>
 @endcan
 
+// Custom Blade Directives
+@hasAssignmentOn($user, $project, new Admin())
+    <button>Admin Actions</button>
+@endhasAssignmentOn
+
+@isAssignedTo($user, $project) 
+    <div>User has a role on this project</div>
+@endisAssignedTo
+
 // Route Middleware for Role Protection
-Route::middleware('require-role:admin')->group(function () {
+Route::middleware('porter.role:admin')->group(function () {
     Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
 });
 
-// Entity-specific role middleware
-Route::middleware('require-role-on:admin,Project,{project}')->group(function () {
+// Entity-specific role middleware  
+Route::middleware('porter.role_on:admin,Project,{project}')->group(function () {
     Route::get('/projects/{project}/admin', [ProjectController::class, 'admin']);
+});
+```
+
+### Custom Blade Directives
+
+Porter provides Blade directives that correspond directly to the trait methods:
+
+```blade
+{{-- Check if user has specific assignment --}}
+@hasAssignmentOn($user, $project, new Admin())
+    <div class="admin-panel">
+        <h3>Admin Controls</h3>
+        <button>Manage Project</button>
+    </div>
+@endhasAssignmentOn
+
+{{-- Check if user has any assignment on entity --}}
+@isAssignedTo($user, $organization)
+    <div class="member-badge">
+        Organization Member
+    </div>
+@endisAssignedTo
+```
+
+### Route Middleware
+
+Porter includes two middleware for protecting routes:
+
+```php
+// Protect routes requiring specific roles (any entity)
+Route::middleware('porter.role:admin')->group(function () {
+    Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
+    Route::get('/admin/users', [AdminController::class, 'users']);
+});
+
+// Protect routes requiring roles on specific entities
+Route::middleware('porter.role_on:admin,Project,{project}')->group(function () {
+    Route::get('/projects/{project}/settings', [ProjectController::class, 'settings']);
+    Route::post('/projects/{project}/delete', [ProjectController::class, 'destroy']);
+});
+
+// Middleware parameters:
+// porter.role_on:{role},{EntityClass},{routeParameter}
+Route::middleware('porter.role_on:manager,Organization,{organization}')->group(function () {
+    Route::resource('organizations.teams', TeamController::class);
+});
+
+// "Any Role" functionality - user must have ANY role on the entity
+Route::middleware('porter.role_on:project,*')->group(function () {
+    Route::get('/projects/{project}/dashboard', [ProjectController::class, 'dashboard']);
+    Route::get('/projects/{project}/activity', [ProjectController::class, 'activity']);
+});
+
+// Alternative syntax using 'anyrole' keyword
+Route::middleware('porter.role:anyrole')->group(function () {
+    Route::get('/projects/{project}/members', [ProjectController::class, 'members']);
 });
 ```
 
