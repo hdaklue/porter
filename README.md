@@ -83,15 +83,6 @@ As a **new package**, your feedback directly shapes Porter's future! I am active
 
 ### 🎯 **Potential Features (Vote & Discuss!)**
 
-#### 🔐 **Granular Permissions System**
-Fine-grained permissions with contextual validation.
-
-**Benefits:**
-- 🎯 Ultra-granular control
-- 📋 Context-aware validation
-- 🔄 Dynamic permission evaluation
-- 🛠️ Complex business rules
-
 #### 🔒 **Assignment Constraints & Actions**
 Advanced assignment rules with contextual validation and conditional actions.
 
