@@ -522,7 +522,7 @@ vendor/bin/pest tests/Feature/CreateRoleCommandTest.php    # Interactive command
 - **Integration** (6 tests) - Laravel compatibility and feature integration
 
 ### Continuous Integration
-- **GitHub Actions** - Automated testing across PHP 8.1-8.3 and Laravel 11-12
+- **GitHub Actions** - Automated testing across PHP 8.2-8.3 and Laravel 11-12
 - **Compatibility Matrix** - Tests all supported version combinations  
 - **Performance Validation** - Ensures speed benchmarks are maintained
 - **Security Testing** - Validates encryption and role key protection
@@ -533,7 +533,7 @@ vendor/bin/pest tests/Feature/CreateRoleCommandTest.php    # Interactive command
 
 ## Requirements
 
-- **PHP 8.1+** - Modern language features
+- **PHP 8.2+** - Modern language features (required by Laravel 11+)
 - **Laravel 11.0+ | 12.0+** - Framework compatibility
 - **Database with JSON support** - MySQL 5.7+, PostgreSQL 9.5+, SQLite 3.1+
 
