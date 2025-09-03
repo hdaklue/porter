@@ -48,7 +48,7 @@ Most RBAC packages are:
 
 ### Porter's Approach
 
-Porter treats roles as **first-class business entities** with their own focused classes, not generic database records.
+Porter treats roles as **business assignments** - contextual relationships between users and entities, not generic database records. Each role assignment carries business logic and domain knowledge.
 
 ### Porter vs Database-Heavy Approaches
 
@@ -56,11 +56,11 @@ Common question: *"Why not use traditional database-based RBAC?"*
 
 | Feature | Database-Heavy RBAC | Porter |
 |---------|---------------------|--------|
-| **Role Architecture** | Database records | Individual PHP classes |
-| **Permission Storage** | Database tables | PHP class methods |
-| **Entity Context** | Global permissions | Entity-specific roles |
+| **Role Concept** | Generic database records | Business assignments with context |
+| **Assignment Logic** | Database foreign keys | PHP class methods with business rules |
+| **Entity Context** | Global permissions | Entity-specific assignments |
 | **Type Safety** | String-based | Full PHP type safety |
-| **Codebase Size** | Many classes/tables | Minimal architecture |
+| **Business Logic** | Scattered across codebase | Encapsulated in role classes |
 | **IDE Support** | Limited | Full autocomplete |
 | **Performance** | Multiple DB queries | Single table, memory checks |
 
@@ -91,6 +91,16 @@ Fine-grained permissions with contextual validation.
 - 📋 Context-aware validation
 - 🔄 Dynamic permission evaluation
 - 🛠️ Complex business rules
+
+#### 🔒 **Assignment Constraints & Actions**
+Advanced assignment rules with contextual validation and conditional actions.
+
+**Benefits:**
+- 🎯 Conditional role assignments based on business rules
+- ⏰ Time-based assignment expiration
+- 📊 Assignment quotas and limits
+- 🔄 Automatic assignment workflows
+- 🧮 Assignment validation with custom constraints
 
 #### 🌐 **REST API Endpoints**
 Ready-to-use API endpoints for role management.
@@ -131,11 +141,12 @@ Contributors who provide valuable feedback will be:
 
 ## Core Features
 
-- 🎯 **Individual Role Classes**: Each role is its own focused class extending `BaseRole`
-- 🚀 **Ultra-Minimal Architecture**: Just 3 core components for role management
+- 🎯 **Assignment-Focused Design**: Treats roles as business assignments with contextual logic
+- 🏗️ **Individual Role Classes**: Each role is its own focused class extending `BaseRole`
+- 🚀 **Ultra-Minimal Architecture**: Just 3 core components for assignment management
 - 🔥 **Blazing Performance**: Optimized for speed with minimal database interaction and built-in caching
-- 🆕 **Latest Features**: Dynamic role factory, config-driven architecture, and enhanced Roster model
-- 🎨 **Perfect Laravel Integration**: Seamlessly works with Gates, Policies, and Blade
+- 🔒 **Enhanced Security**: Assignment keys encrypted with Laravel's built-in encryption
+- 🎨 **Perfect Laravel Integration**: Custom Blade directives, middleware, plus seamless Gates and Policies
 
 **🔗 [Complete Core Features Guide →](docs/core-features.md)**
 
@@ -356,6 +367,16 @@ $this->authorize('update', $project);
 @can('update', $project)
     <button>Edit Project</button>
 @endcan
+
+// Route Middleware for Role Protection
+Route::middleware('require-role:admin')->group(function () {
+    Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
+});
+
+// Entity-specific role middleware
+Route::middleware('require-role-on:admin,Project,{project}')->group(function () {
+    Route::get('/projects/{project}/admin', [ProjectController::class, 'admin']);
+});
 ```
 
 **🔗 [Complete Laravel Integration Guide →](docs/laravel-integration.md)**
@@ -484,13 +505,16 @@ php artisan porter:doctor
 
 ## Testing
 
-Porter features comprehensive testing with **78 tests** and **354 assertions** covering real-world scenarios and edge cases.
+Porter features comprehensive testing with **74 tests** and **321 assertions** covering real-world scenarios and edge cases, with continuous integration across multiple PHP and Laravel versions.
 
 ```bash
 # Run complete test suite
 vendor/bin/pest
 
-# Run with coverage reporting
+# Run all tests including feature tests
+vendor/bin/pest tests/
+
+# Run with coverage reporting (requires xdebug)
 vendor/bin/pest --coverage
 
 # Test specific components
@@ -500,11 +524,18 @@ vendor/bin/pest tests/Feature/CreateRoleCommandTest.php    # Interactive command
 ```
 
 ### Test Coverage
-- **RoleValidator** (24 tests) - Caching, validation, and hierarchy calculations
-- **Commands** (17 tests) - Interactive role creation and installation
-- **Database** (16 tests) - Role assignments and model relationships  
-- **Unit Tests** (15 tests) - Core role logic and factory methods
-- **Edge Cases** (20+ scenarios) - File corruption, invalid states, race conditions
+- **RoleValidator** (23 tests) - Caching, validation, and hierarchy calculations
+- **Commands** (14 tests) - Interactive role creation and installation  
+- **Database** (19 tests) - Role assignments and model relationships
+- **Unit Tests** (12 tests) - Core role logic and factory methods
+- **Integration** (6 tests) - Laravel compatibility and feature integration
+
+### Continuous Integration
+- **GitHub Actions** - Automated testing across PHP 8.1-8.3 and Laravel 11-12
+- **Compatibility Matrix** - Tests all supported version combinations  
+- **Performance Validation** - Ensures speed benchmarks are maintained
+- **Security Testing** - Validates encryption and role key protection
+- **Database Migration Testing** - Tests across multiple database engines
 
 
 --- 

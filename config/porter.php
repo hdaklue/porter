@@ -112,10 +112,18 @@ return [
 
         /*
          | Configure how role keys are stored in the database.
-         | - 'hashed': (Default) One-way hash for security.
-         | - 'plain': Plain text, useful for debugging.
+         | - 'encrypted': (Default) Reversible encryption using Laravel's encrypt()/decrypt().
+         | - 'hashed': One-way hash using Laravel's Hash facade (requires role verification).
+         | - 'plain': Plain text, only allowed in local/testing environments.
          */
-        'key_storage' => env('PORTER_KEY_STORAGE', 'hashed'),
+        'key_storage' => env('PORTER_KEY_STORAGE', 'encrypted'),
+
+        /*
+         | Hash rounds for bcrypt when using 'hashed' storage mode.
+         | Higher values increase security but also CPU usage.
+         | Recommended: 12-16 for production, 4-8 for testing.
+         */
+        'hash_rounds' => env('PORTER_HASH_ROUNDS', 12),
 
         /*
          | Enable automatic snake_case key generation from role class names.
@@ -123,6 +131,19 @@ return [
          | When false: Must implement getDbKey() manually in each role.
          */
         'auto_generate_keys' => env('PORTER_AUTO_KEYS', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Database Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Database-specific settings for optimized performance and reliability.
+    |
+    */
+    'database' => [
+        'transaction_attempts' => env('PORTER_DB_TRANSACTION_ATTEMPTS', 3),
+        'lock_timeout' => env('PORTER_DB_LOCK_TIMEOUT', 10),
     ],
 
     /*
@@ -138,6 +159,7 @@ return [
         'connection' => env('PORTER_CACHE_CONNECTION', 'default'),
         'key_prefix' => env('PORTER_CACHE_PREFIX', 'porter'),
         'ttl' => env('PORTER_CACHE_TTL', 3600), // 1 hour
+        'use_tags' => env('PORTER_CACHE_USE_TAGS', true),
     ],
 
     /*

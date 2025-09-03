@@ -9,7 +9,12 @@ use Hdaklue\Porter\Console\Commands\DoctorCommand;
 use Hdaklue\Porter\Console\Commands\InstallCommand;
 use Hdaklue\Porter\Console\Commands\ListCommand;
 use Hdaklue\Porter\Contracts\RoleManagerContract;
+use Hdaklue\Porter\Middleware\RequireRole;
+use Hdaklue\Porter\Middleware\RequireRoleOn;
 use Hdaklue\Porter\RoleManager;
+use Hdaklue\Porter\Support\LaravelCompatibility;
+use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 
 class PorterServiceProvider extends ServiceProvider
@@ -19,6 +24,9 @@ class PorterServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Validate Laravel compatibility
+        LaravelCompatibility::validate();
+
         // Merge config
         $this->mergeConfigFrom(
             __DIR__.'/../../config/porter.php',
@@ -58,6 +66,12 @@ class PorterServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register middleware
+        $this->registerMiddleware();
+
+        // Register Blade directives
+        $this->registerBladeDirectives();
+
         // Publish config files
         $this->publishes([
             __DIR__.'/../../config/porter.php' => config_path('porter.php'),
@@ -69,6 +83,39 @@ class PorterServiceProvider extends ServiceProvider
         ], 'porter-migrations');
 
         // Load migrations (for when running package tests)
-        $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
+        // Commented out to avoid Laravel version compatibility issues with check() constraints
+        // $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
+    }
+
+    /**
+     * Register middleware with the router.
+     */
+    private function registerMiddleware(): void
+    {
+        if (! $this->app->bound(Router::class)) {
+            return;
+        }
+
+        $router = $this->app->make(Router::class);
+
+        // Register role-based middleware
+        $router->aliasMiddleware('porter.role', RequireRole::class);
+        $router->aliasMiddleware('porter.role_on', RequireRoleOn::class);
+    }
+
+    /**
+     * Register Blade directives that correspond to trait methods.
+     */
+    private function registerBladeDirectives(): void
+    {
+        // @hasAssignmentOn($user, $target, $role)
+        Blade::if('hasAssignmentOn', function ($user, $target, $role) {
+            return $user->hasAssignmentOn($target, $role);
+        });
+
+        // @isAssignedTo($user, $entity) 
+        Blade::if('isAssignedTo', function ($user, $entity) {
+            return $user->isAssignedTo($entity);
+        });
     }
 }

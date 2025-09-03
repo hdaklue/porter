@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Hdaklue\Porter\Support\LaravelCompatibility;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -40,17 +41,35 @@ return new class() extends Migration
                     ]
                 };
 
-                $table->string('role_key');     // Role key ('admin', 'manager', etc.)
+                $table->text('role_key');       // Encrypted/hashed role key (can be long)
                 $table->timestamps();
+
+                // Add database constraints if supported by current Laravel version
+                if (LaravelCompatibility::supportsCheckConstraints()) {
+                    $table->check('LENGTH(assignable_type) > 0', 'assignable_type_not_empty');
+                    $table->check('LENGTH(roleable_type) > 0', 'roleable_type_not_empty');
+                    $table->check('LENGTH(role_key) > 0', 'role_key_not_empty');
+
+                    // Additional validation based on ID strategy
+                    if (config('porter.id_strategy') === 'integer') {
+                        $table->check('assignable_id > 0', 'assignable_id_positive');
+                        $table->check('roleable_id > 0', 'roleable_id_positive');
+                    }
+                }
 
                 $table->unique(
                     ['assignable_type', 'assignable_id', 'roleable_type', 'roleable_id', 'role_key'],
                     'porter_unique',
                 );
 
-                $table->index(['assignable_id', 'assignable_type'], 'porter_assignable_index');
-                $table->index(['roleable_id', 'roleable_type'], 'porter_roleable_index');
-                $table->index(['role_key'], 'porter_role_key_index');
+                // Performance indexes
+                $table->index(['assignable_id', 'assignable_type'], 'porter_assignable_idx');
+                $table->index(['roleable_id', 'roleable_type'], 'porter_roleable_idx');
+                $table->index(['role_key'], 'porter_role_key_idx');
+
+                // Composite indexes for common queries
+                $table->index(['assignable_type', 'assignable_id', 'roleable_type'], 'porter_user_entity_idx');
+                $table->index(['roleable_type', 'roleable_id'], 'porter_entity_idx');
             });
     }
 

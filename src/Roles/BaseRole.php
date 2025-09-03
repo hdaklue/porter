@@ -75,32 +75,96 @@ abstract class BaseRole implements RoleContract
     }
 
     /**
-     * Encrypt/hash a role key for database storage.
+     * Encrypt a role key for database storage using Laravel's encryption.
+     *
+     * @throws \RuntimeException When encryption fails
      */
     protected static function encryptRoleKey(string $plainKey): string
     {
+        // Validate input
+        if (empty(trim($plainKey))) {
+            throw new \InvalidArgumentException('Role key cannot be empty');
+        }
+
         // Check if we have Laravel config available
         if (! function_exists('config') || ! app()->bound('config')) {
-            // Return plain key when running outside Laravel context
+            // Return test prefix when running outside Laravel context
             return 'test_'.$plainKey;
         }
 
-        $storage = config('porter.security.key_storage', 'hashed');
+        $storage = config('porter.security.key_storage', 'encrypted');
 
-        if ($storage === 'hashed') {
-            // Hash using app key as salt for security
-            return hash('sha256', $plainKey.config('app.key'));
+        // Validate storage configuration
+        $allowedStorageTypes = ['encrypted', 'hashed', 'plain'];
+        if (! in_array($storage, $allowedStorageTypes, true)) {
+            throw new \InvalidArgumentException("Invalid storage type: {$storage}. Allowed: ".implode(', ', $allowedStorageTypes));
         }
 
-        // Fallback: just return plain key (for development/testing)
+        try {
+            return match ($storage) {
+                'encrypted' => static::secureEncrypt($plainKey),
+                'hashed' => static::secureHash($plainKey),
+                'plain' => static::handlePlainStorage($plainKey),
+                default => static::secureEncrypt($plainKey), // Default to most secure option
+            };
+        } catch (\Exception $e) {
+            // Log encryption failure but don't expose details
+            if (function_exists('report')) {
+                report($e);
+            }
+            throw new \RuntimeException('Role key encryption failed. Check app key configuration.', 0, $e);
+        }
+    }
+
+    /**
+     * Securely encrypt the role key with additional entropy.
+     */
+    private static function secureEncrypt(string $plainKey): string
+    {
+        // Add salt for additional security (not for authentication, just obfuscation)
+        $saltedKey = hash_hmac('sha256', $plainKey, config('app.key', ''), true);
+
+        return encrypt(base64_encode($saltedKey));
+    }
+
+    /**
+     * Create secure hash with proper configuration.
+     */
+    private static function secureHash(string $plainKey): string
+    {
+        return \Illuminate\Support\Facades\Hash::make($plainKey, [
+            'rounds' => config('porter.security.hash_rounds', 12),
+        ]);
+    }
+
+    /**
+     * Handle plain text storage with strict environment checks.
+     */
+    private static function handlePlainStorage(string $plainKey): string
+    {
+        $allowedEnvironments = ['testing', 'local'];
+        $currentEnv = app()->environment();
+
+        if (! in_array($currentEnv, $allowedEnvironments, true)) {
+            throw new \RuntimeException("Plain text storage not allowed in '{$currentEnv}' environment. Use 'encrypted' or 'hashed'.");
+        }
+
         return $plainKey;
     }
 
     /**
-     * Decrypt a role key from database storage.
+     * Decrypt a role key from database storage using Laravel's decryption.
+     *
+     * @throws \InvalidArgumentException When decryption fails or key is invalid
+     * @throws \RuntimeException When decryption process fails
      */
     protected static function decryptRoleKey(string $encryptedKey): string
     {
+        // Validate input
+        if (empty(trim($encryptedKey))) {
+            throw new \InvalidArgumentException('Encrypted role key cannot be empty');
+        }
+
         // Check if we have Laravel config available
         if (! function_exists('config') || ! app()->bound('config')) {
             // Handle test keys when running outside Laravel context
@@ -111,19 +175,81 @@ abstract class BaseRole implements RoleContract
             return $encryptedKey;
         }
 
-        $storage = config('porter.security.key_storage', 'hashed');
+        $storage = config('porter.security.key_storage', 'encrypted');
 
-        if ($storage === 'hashed') {
-            // Can't decrypt hash, need to verify by trying all roles
-            return static::findPlainKeyByHash($encryptedKey);
+        try {
+            return match ($storage) {
+                'encrypted' => static::secureDecrypt($encryptedKey),
+                'hashed' => static::findPlainKeyByHash($encryptedKey),
+                'plain' => static::handlePlainDecryption($encryptedKey),
+                default => static::secureDecrypt($encryptedKey),
+            };
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            if (function_exists('report')) {
+                report($e);
+            }
+            throw new \InvalidArgumentException('Invalid role key - decryption failed', 0, $e);
+        } catch (\Exception $e) {
+            if (function_exists('report')) {
+                report($e);
+            }
+            throw new \RuntimeException('Role key decryption failed', 0, $e);
+        }
+    }
+
+    /**
+     * Securely decrypt the role key.
+     */
+    private static function secureDecrypt(string $encryptedKey): string
+    {
+        $decrypted = decrypt($encryptedKey);
+        $saltedKey = base64_decode($decrypted, true);
+
+        if ($saltedKey === false) {
+            throw new \InvalidArgumentException('Invalid encrypted role key format');
         }
 
-        // Fallback: return as-is
+        // We can't reverse the HMAC, so we need to verify by trying all known roles
+        return static::findPlainKeyBySaltedHash($saltedKey);
+    }
+
+    /**
+     * Handle plain text decryption with environment validation.
+     */
+    private static function handlePlainDecryption(string $encryptedKey): string
+    {
+        $allowedEnvironments = ['testing', 'local'];
+        $currentEnv = app()->environment();
+
+        if (! in_array($currentEnv, $allowedEnvironments, true)) {
+            throw new \RuntimeException("Plain text decryption not allowed in '{$currentEnv}' environment.");
+        }
+
         return $encryptedKey;
     }
 
     /**
-     * Find plain key by trying to match hash.
+     * Find plain key by matching salted hash (for encrypted storage mode).
+     */
+    private static function findPlainKeyBySaltedHash(string $saltedHash): string
+    {
+        $roles = static::all();
+        $appKey = config('app.key', '');
+
+        foreach ($roles as $role) {
+            $plainKey = $role::getPlainKey();
+            $expectedHash = hash_hmac('sha256', $plainKey, $appKey, true);
+
+            if (hash_equals($expectedHash, $saltedHash)) {
+                return $plainKey;
+            }
+        }
+
+        throw new \InvalidArgumentException('Invalid role key hash - no matching role found');
+    }
+
+    /**
+     * Find plain key by trying to match hash (for hashed storage mode).
      */
     protected static function findPlainKeyByHash(string $targetHash): string
     {
@@ -131,15 +257,16 @@ abstract class BaseRole implements RoleContract
 
         foreach ($roles as $role) {
             $plainKey = $role::getPlainKey();
-            if (static::encryptRoleKey($plainKey) === $targetHash) {
+            // For hashed storage, we need to verify using Laravel's Hash::check
+            if (\Illuminate\Support\Facades\Hash::check($plainKey, $targetHash)) {
                 return $plainKey;
             }
         }
 
-        throw new \InvalidArgumentException('Invalid role key hash');
+        throw new \InvalidArgumentException('Invalid role key hash - no matching role found');
     }
 
-    /**it
+    /**
      * Get human-readable label for this role.
      */
     public function getLabel(): string
