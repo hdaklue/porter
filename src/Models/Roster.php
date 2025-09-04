@@ -96,9 +96,12 @@ final class Roster extends Model
 
     public function getRoleDBKey(): string
     {
-        if ($this->hasAttribute(config('porter.column_names.role_key'))) {
-            return $this->getAttribute(config('porter.column_names.role_key'));
+        $roleKeyColumn = config('porter.column_names.role_key', 'role_key');
+        
+        if (isset($this->attributes[$roleKeyColumn])) {
+            return $this->getAttribute($roleKeyColumn);
         }
+        
         throw new Exception('Unable to resolve role_key');
     }
 
