@@ -10,7 +10,7 @@ A lightweight, blazing-fast Laravel access control package that treats roles as 
 
 ## 🎥 Video Demos Needed
 
-Porter is seeking a co-maintainer to create video demos and tutorials showcasing the package features and usage. If you're interested in creating educational content for this Laravel package, please contact hassan@daklue.com
+Porter is seeking a co-maintainer to create video demos and tutorials showcasing the package features and usage. If you're interested in creating educational content for this Laravel package, please contact hassan@daklue.com 
 
 --- 
 
