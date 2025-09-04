@@ -1,5 +1,10 @@
 # Porter - Ultra-Minimal Laravel Access Control
 
+[![Tests](https://github.com/hdaklue/porter/actions/workflows/ci.yml/badge.svg)](https://github.com/hdaklue/porter/actions/workflows/ci.yml)
+[![PHP Version](https://img.shields.io/badge/php-%5E8.3-blue)](https://packagist.org/packages/hdaklue/porter)
+[![Laravel](https://img.shields.io/badge/laravel-%5E11.0%20%7C%20%5E12.0-red)](https://packagist.org/packages/hdaklue/porter)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 **Your application's trusted doorkeeper** 🚪
 
 A lightweight, blazing-fast Laravel access control package that treats roles as what they truly are: **domain business logic**, not database abstractions. Built for developers who value simplicity, performance, and clean architecture.
