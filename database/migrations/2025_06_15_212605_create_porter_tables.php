@@ -40,7 +40,7 @@ return new class() extends Migration
                     ]
                 };
 
-                $table->string('role_key', 500); // Encrypted/hashed role key (limited length for indexes)
+                $table->string('role_key', 500); // Fixed: Encrypted/hashed role key (limited length for indexes)
                 $table->timestamps();
 
                 // Database constraints (only if Blueprint::check method exists)
