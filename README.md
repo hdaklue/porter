@@ -1,10 +1,14 @@
-# Porter - Ultra-Minimal Laravel Role Management
+# Porter - Ultra-Minimal Laravel Access Control
 
 **Your application's trusted doorkeeper** 🚪
 
-A lightweight, blazing-fast Laravel role-based access control package that treats roles as what they truly are: **domain business logic**, not database abstractions. Built for developers who value simplicity, performance, and clean architecture.
+A lightweight, blazing-fast Laravel access control package that treats roles as what they truly are: **domain business logic**, not database abstractions. Built for developers who value simplicity, performance, and clean architecture.
 
-> "Current RBAC were made for CMSs."
+**Porter's Core Concept**: Any model can be **Assignable** (users, teams, departments), any model can be **Roleable** (projects, organizations, documents), and the **Roster** defines the access control relationship between them. This flexibility lets you model complex business scenarios with simple, expressive code.
+
+**Perfect for**: [Team collaboration](#team-collaboration-platform), [SaaS feature consumption](#saas-feature-consumption), [document management](#document-management-system), [project access control](#project-management-system), [multi-tenant applications](#multi-tenant-application), and [enterprise hierarchies](#enterprise-hierarchy-management).
+
+> "Current RBAC systems were made for CMSs."
 
 ## 🎥 Video Demos Needed
 
@@ -52,10 +56,12 @@ Porter treats roles as **business assignments** - contextual relationships betwe
 
 ### Porter vs Database-Heavy Approaches
 
-Common question: *"Why not use traditional database-based RBAC?"*
+Common question: *"Why not use traditional database-based access control?"*
 
-| Feature | Database-Heavy RBAC | Porter |
+| Feature | Database-Heavy Systems | Porter Access Control |
 |---------|---------------------|--------|
+| **Assignment Model** | Fixed user-permission mappings | Flexible Assignable-Roleable-Roster pattern |
+| **Entity Support** | Limited to users and roles | Any model as Assignable or Roleable |
 | **Role Concept** | Generic database records | Business assignments with context |
 | **Assignment Logic** | Database foreign keys | PHP class methods with business rules |
 | **Entity Context** | Global permissions | Entity-specific assignments |
@@ -64,8 +70,8 @@ Common question: *"Why not use traditional database-based RBAC?"*
 | **IDE Support** | Limited | Full autocomplete |
 | **Performance** | Multiple DB queries | Single table, memory checks |
 
-**Use Database RBAC if:** You need complex global permission matrices  
-**Use Porter if:** You need entity-specific roles with type safety and simplicity
+**Use Traditional Systems if:** You need complex global permission matrices  
+**Use Porter Access Control if:** You need flexible entity-specific assignments with type safety and simplicity
 
 ### **Porter's Sweet Spot:**
 - **SaaS applications** with fixed role structures
@@ -73,7 +79,7 @@ Common question: *"Why not use traditional database-based RBAC?"*
 - **Microservices** with service-specific roles
 - **High-performance** applications where DB queries are a bottleneck
 
-**Note:** For true multi-tenancy (shared codebase, tenant-specific roles), consider database-based RBAC packages like. Porter's class-based approach is optimized for applications where roles are business logic, not tenant-variable data.
+**Note:** For true multi-tenancy (shared codebase, tenant-specific roles), consider database-heavy packages. Porter's class-based approach is optimized for applications where access control reflects business logic, not tenant-variable data.
 
 --- 
 
@@ -144,6 +150,94 @@ Contributors who provide valuable feedback will be:
 Learn about individual role classes, ultra-minimal architecture, blazing performance optimizations, latest features, and perfect Laravel integration.
 
 --- 
+
+## Real-World Use Cases
+
+Porter's flexible Assignable-Roleable-Roster pattern adapts to diverse business scenarios:
+
+### Team Collaboration Platform
+```php
+// Teams (Assignable) can have roles on Projects (Roleable)
+Porter::assign($developmentTeam, $mobileApp, 'lead_developer');
+Porter::assign($designTeam, $mobileApp, 'ui_designer');
+Porter::assign($qaTeam, $mobileApp, 'tester');
+
+// Users can also have individual roles
+Porter::assign($projectManager, $mobileApp, 'project_owner');
+```
+
+### SaaS Feature Consumption
+```php
+// Organizations (Assignable) get feature access on Subscriptions (Roleable)
+Porter::assign($organization, $premiumSubscription, 'analytics_access');
+Porter::assign($organization, $premiumSubscription, 'api_access');
+Porter::assign($organization, $enterpriseSubscription, 'white_label');
+
+// Check feature access
+if ($organization->hasRoleOn($subscription, 'analytics_access')) {
+    // Show analytics dashboard
+}
+```
+
+### Document Management System
+```php
+// Users/Departments (Assignable) have roles on Documents/Folders (Roleable)
+Porter::assign($user, $confidentialDocument, 'viewer');
+Porter::assign($legalDepartment, $contractsFolder, 'editor');
+Porter::assign($hrTeam, $personnelFolder, 'admin');
+
+// Granular document permissions
+if ($user->hasRoleOn($document, 'editor')) {
+    // Allow document editing
+}
+```
+
+### Project Management System
+```php
+// Multiple assignment types for complex project structures
+Porter::assign($developer, $project, 'contributor');
+Porter::assign($clientCompany, $project, 'stakeholder');
+Porter::assign($vendorTeam, $project, 'external_consultant');
+
+// Role hierarchy checks
+$userRole = Porter::getRoleOn($user, $project);
+if ($userRole && $userRole->isHigherThan(new Contributor())) {
+    // Allow project configuration
+}
+```
+
+### Multi-Tenant Application
+```php
+// Users (Assignable) have roles on Tenants/Workspaces (Roleable)
+Porter::assign($user, $workspace, 'admin');
+Porter::assign($user, $anotherWorkspace, 'member');
+
+// Cross-tenant role isolation
+$workspaceRoles = Porter::getRolesOn($user, $workspace);
+// Only returns roles for this specific workspace
+```
+
+### Enterprise Hierarchy Management
+```php
+// Departments (Assignable) have roles on Divisions/Subsidiaries (Roleable)
+Porter::assign($financeTeam, $subsidiary, 'budget_approver');
+Porter::assign($auditDepartment, $division, 'compliance_reviewer');
+Porter::assign($executiveTeam, $corporation, 'strategic_decision_maker');
+
+// Business rule validation in role classes
+final class BudgetApprover extends BaseRole
+{
+    public function getMaxApprovalAmount(): int {
+        return 500000; // $500k limit
+    }
+    
+    public function canApproveInRegion(string $region): bool {
+        return in_array($region, $this->getAllowedRegions());
+    }
+}
+```
+
+---
 
 ## Suggested Usage
 
