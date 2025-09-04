@@ -129,7 +129,7 @@ final class RoleManager implements RoleManagerContract
 
         // Dispatch events for removed assignments
         foreach ($assignments as $assignment) {
-            $encryptedKey = $assignment->role_key;
+            $encryptedKey = $assignment->getRoleDBKey();
             $role = RoleFactory::tryMake($encryptedKey);
             if ($role) {
                 RoleRemoved::dispatch($user, $target, $role);
@@ -169,7 +169,7 @@ final class RoleManager implements RoleManagerContract
 
             if ($model) {
                 // Get the old role before changing it
-                $oldEncryptedKey = $model->role_key;
+                $oldEncryptedKey = $model->getRoleDBKey();
                 $oldRole = RoleFactory::tryMake($oldEncryptedKey);
 
                 $model->role_key = $newEncryptedKey;

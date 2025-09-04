@@ -216,5 +216,4 @@ final class InstallCommand extends Command
 
         return $plainKey;
     }
-
 }

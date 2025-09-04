@@ -125,10 +125,10 @@ abstract class BaseRole implements RoleContract
         // Create a secure, consistent-length encrypted key using SHA-256 + base64
         // This approach ensures the result fits in 128 characters while maintaining security
         $saltedKey = hash_hmac('sha256', $plainKey, config('app.key', 'fallback-key'), true);
-        
+
         // Base64 encode the binary hash (32 bytes -> 44 characters)
         // Then add a prefix to distinguish from plain hashing
-        return 'enc_' . base64_encode($saltedKey);
+        return 'enc_'.base64_encode($saltedKey);
     }
 
     /**
@@ -211,15 +211,15 @@ abstract class BaseRole implements RoleContract
         if (str_starts_with($encryptedKey, 'enc_')) {
             $hashedData = substr($encryptedKey, 4); // Remove 'enc_' prefix
             $saltedKey = base64_decode($hashedData, true);
-            
+
             if ($saltedKey === false) {
                 throw new \InvalidArgumentException('Invalid encrypted role key format');
             }
-            
+
             // We can't reverse the HMAC, so we need to verify by trying all known roles
             return static::findPlainKeyBySaltedHash($saltedKey);
         }
-        
+
         // Handle legacy Laravel encryption format (for backward compatibility)
         $decrypted = decrypt($encryptedKey);
         $saltedKey = base64_decode($decrypted, true);

@@ -78,9 +78,8 @@ test('Roster model retrieves role instance from role_key', function () {
         'role_key' => $encryptedKey,
     ]);
 
-    $role = $roster->role;
-    expect($role)->toBeInstanceOf(TestAdmin::class);
-    expect($role->getName())->toBe('TestAdmin');
+    expect($roster->role_key)->toBeInstanceOf(TestAdmin::class);
+    expect($roster->role_key->getName())->toBe('TestAdmin');
 });
 
 test('Roster model uses correct table name from config', function () {
@@ -89,15 +88,18 @@ test('Roster model uses correct table name from config', function () {
 });
 
 test('Roster model retrieves role database key correctly', function () {
+    $testAdmin = new \Hdaklue\Porter\Tests\Fixtures\TestAdmin();
     $roster = new Roster([
         'assignable_type' => TestUser::class,
         'assignable_id' => 1,
         'roleable_type' => TestProject::class,
         'roleable_id' => 1,
-        'role_key' => 'test_role_key',
+        'role_key' => $testAdmin::getDbKey(),
     ]);
 
-    expect($roster->getRoleDBKey())->toBe('test_role_key');
+    expect($roster->getRoleDBKey())->toBe($testAdmin::getDbKey());
+    expect($roster->role_key)->toBeInstanceOf(\Hdaklue\Porter\Contracts\RoleContract::class);
+    expect($roster->role_key->getName())->toBe('TestAdmin');
 });
 
 test('Roster model has timestamps enabled', function () {
@@ -196,7 +198,8 @@ test('Roster model withRole scope works correctly', function () {
     $adminAssignments = Roster::withRole($admin)->get();
 
     expect($adminAssignments)->toHaveCount(1);
-    expect($adminAssignments->first()->role_key)->toBe($admin::getDbKey());
+    expect($adminAssignments->first()->role_key)->toBeInstanceOf(\Hdaklue\Porter\Contracts\RoleContract::class);
+    expect($adminAssignments->first()->role_key->getName())->toBe('TestAdmin');
 });
 
 test('Roster model withRoleName scope works correctly', function () {
@@ -287,5 +290,6 @@ test('Roster model scopes can be chained', function () {
     expect($specificAssignment)->toHaveCount(1);
     expect($specificAssignment->first()->assignable_id)->toBe((string) $user1->id);
     expect($specificAssignment->first()->roleable_id)->toBe((string) $project->id);
-    expect($specificAssignment->first()->role_key)->toBe($admin::getDbKey());
+    expect($specificAssignment->first()->role_key)->toBeInstanceOf(\Hdaklue\Porter\Contracts\RoleContract::class);
+    expect($specificAssignment->first()->role_key->getName())->toBe('TestAdmin');
 });

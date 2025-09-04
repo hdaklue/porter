@@ -6,11 +6,11 @@ namespace Hdaklue\Porter\Models;
 
 use Eloquent;
 use Exception;
+use Hdaklue\Porter\Casts\RoleCast;
 use Hdaklue\Porter\Contracts\RoleContract;
 use Hdaklue\Porter\RoleFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string $assignable_id
  * @property string $roleable_type
  * @property string $roleable_id
- * @property string $role_key
+ * @property RoleContract $role_key
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property-read Model|\Eloquent $assignable The entity that has the role (e.g., User)
@@ -58,6 +58,10 @@ final class Roster extends Model
         'role_key',
     ];
 
+    protected $casts = [
+        'role_key' => RoleCast::class,
+    ];
+
     /**
      * Get the database connection for the model.
      */
@@ -82,13 +86,6 @@ final class Roster extends Model
         return $this->morphTo();
     }
 
-    protected function role(): Attribute
-    {
-        return Attribute::make(
-            get: fn (mixed $value, array $attributes) => RoleFactory::tryMake($this->getRoleDBKey()),
-        );
-    }
-
     public function getTable(): string
     {
         return config('porter.table_names.roster', 'roster');
@@ -97,11 +94,12 @@ final class Roster extends Model
     public function getRoleDBKey(): string
     {
         $roleKeyColumn = config('porter.column_names.role_key', 'role_key');
-        
+
         if (isset($this->attributes[$roleKeyColumn])) {
-            return $this->getAttribute($roleKeyColumn);
+            // Get raw attribute value (before cast) to return the encrypted key string
+            return $this->attributes[$roleKeyColumn];
         }
-        
+
         throw new Exception('Unable to resolve role_key');
     }
 
@@ -150,8 +148,7 @@ final class Roster extends Model
     {
         $assignableName = class_basename($this->assignable_type);
         $roleableName = class_basename($this->roleable_type);
-        $role = $this->role;
 
-        return "{$assignableName} #{$this->assignable_id} has role '{$role->getName()}' on {$roleableName} #{$this->roleable_id}";
+        return "{$assignableName} #{$this->assignable_id} has role '{$this->role_key->getName()}' on {$roleableName} #{$this->roleable_id}";
     }
 }

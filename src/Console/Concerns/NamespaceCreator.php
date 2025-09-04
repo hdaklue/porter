@@ -21,7 +21,7 @@ trait NamespaceCreator
     {
         $namespace = $this->rootNamespace();
         $fullPath = str_replace('\\', '/', $namespace);
-        
+
         return base_path(lcfirst($fullPath));
     }
 }

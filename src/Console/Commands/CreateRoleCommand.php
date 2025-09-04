@@ -433,5 +433,4 @@ final class CreateRoleCommand extends Command
             RoleFactory::clearCache();
         }
     }
-
 }

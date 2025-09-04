@@ -1,4 +1,4 @@
-# Porter - Ultra-Minimal Laravel Access Control
+# Porter - Lightweight Access Control Management yet 💪 for Laravel
 
 [![Tests](https://github.com/hdaklue/porter/actions/workflows/ci.yml/badge.svg)](https://github.com/hdaklue/porter/actions/workflows/ci.yml)
 [![PHP Version](https://img.shields.io/badge/php-%5E8.3-blue)](https://packagist.org/packages/hdaklue/porter)
@@ -146,6 +146,7 @@ Contributors who provide valuable feedback will be:
 - 🚀 **Ultra-Minimal Architecture**: Just 3 core components for assignment management
 - 🔥 **Blazing Performance**: Optimized for speed with minimal database interaction and built-in caching
 - 🔒 **Enhanced Security**: Assignment keys encrypted with Laravel's built-in encryption
+- 🎯 **Automatic RoleCast**: Seamless conversion between database keys and type-safe RoleContract instances
 - 🎨 **Perfect Laravel Integration**: Custom Blade directives, middleware, plus seamless Gates and Policies
 
 **🔗 [Complete Core Features Guide →](docs/core-features.md)**
@@ -401,7 +402,7 @@ php artisan porter:install --roles
 The install command:
 ✅ Publishes configuration file
 ✅ Publishes and runs migrations
-✅ Creates Porter directory with configurable namespace
+✅ Creates Porter directory
 ✅ Optionally creates 6 default role classes (Admin, Manager, Editor, Contributor, Viewer, Guest)
 ✅ Provides contextual next-step guidance
 ✅ Blocks installation in production environment for safety
@@ -436,26 +437,51 @@ public function canManageProject(User $user, Project $project): bool
 }
 ```
 
-### Enhanced Roster Model with Scopes
+### Enhanced Roster Model with RoleCast & Scopes
+
+Porter includes an **automatic RoleCast** that seamlessly converts between encrypted database keys and strongly-typed RoleContract instances:
 
 ```php
 use Hdaklue\Porter\Models\Roster;
 
-// Query role assignments with new scopes
+// Create assignments (accepts both RoleContract instances and strings)
+$roster = Roster::create([
+    'assignable_type' => User::class,
+    'assignable_id' => $user->id,
+    'roleable_type' => Project::class,
+    'roleable_id' => $project->id,
+    'role_key' => new Admin(), // RoleContract instance - automatically converted
+]);
+
+// Access role attributes directly (automatically cast to RoleContract)
+echo $roster->role_key->getName();    // 'admin'
+echo $roster->role_key->getLevel();   // 10
+echo $roster->role_key->getLabel();   // 'Administrator'
+
+// Get raw database key when needed
+$encryptedKey = $roster->getRoleDBKey(); // Returns encrypted string for queries
+
+// Query role assignments with intelligent scopes
 $userAssignments = Roster::forAssignable(User::class, $user->id)->get();
 $projectRoles = Roster::forRoleable(Project::class, $project->id)->get();
 $adminAssignments = Roster::withRoleName('admin')->get();
 
-// Timestamps for audit trails
-$assignment = Roster::create([...]);
-echo "Assigned on: " . $assignment->created_at;
-
-// Human-readable descriptions
+// Business logic with type safety
 foreach ($assignments as $assignment) {
+    if ($assignment->role_key->getLevel() >= 5) {
+        // High-level role access
+    }
+    
     echo $assignment->description;
     // Output: "User #123 has role 'admin' on Project #456"
 }
 ```
+
+**RoleCast Benefits:**
+- 🔒 **Secure Storage**: Role keys encrypted in database (64-char limit)
+- 🎯 **Type Safety**: Automatic conversion to RoleContract instances  
+- 🚀 **Performance**: Leverages existing RoleFactory for efficient role resolution
+- 👨‍💻 **Developer Experience**: Work with objects instead of strings
 
 ### Custom Role Classes with Business Logic
 
@@ -504,18 +530,6 @@ return [
 
     // Database connection
     'database_connection' => env('PORTER_DB_CONNECTION'),
-
-    // Role Directory & Namespace Configuration
-    'directory' => env('PORTER_DIRECTORY', app_path('Porter')),
-    'namespace' => env('PORTER_NAMESPACE', 'App\\Porter'),
-
-    // Your role classes (auto-populated by porter:install --roles)
-    'roles' => [
-        App\Porter\Admin::class,
-        App\Porter\Manager::class,
-        App\Porter\Editor::class,
-        // ... add your custom roles here
-    ],
 
     // Security settings
     'security' => [
