@@ -34,7 +34,7 @@ return [
     | This should be an absolute path or relative to the app directory.
     |
     */
-    'directory' => env('PORTER_DIRECTORY'),
+    // 'directory' => env('PORTER_DIRECTORY'),
 
     /*
     |--------------------------------------------------------------------------
@@ -45,7 +45,7 @@ return [
     | This should match the directory structure.
     |
     */
-    'namespace' => env('PORTER_NAMESPACE', 'App\\Porter'),
+    // 'namespace' => env('PORTER_NAMESPACE', 'App\\Porter'),
 
     /*
     |--------------------------------------------------------------------------
