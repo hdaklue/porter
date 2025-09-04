@@ -34,7 +34,7 @@ return [
     | This should be an absolute path or relative to the app directory.
     |
     */
-    'directory' => env('PORTER_DIRECTORY', app_path('Porter')),
+    'directory' => env('PORTER_DIRECTORY'),
 
     /*
     |--------------------------------------------------------------------------
