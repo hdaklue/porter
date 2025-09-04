@@ -53,6 +53,7 @@ jobs:
     - name: Display environment info
       run: |
         php -r "
+        require 'vendor/autoload.php';
         echo 'PHP Version: ' . PHP_VERSION . PHP_EOL;
         echo 'Laravel Version: ' . \Illuminate\Foundation\Application::VERSION . PHP_EOL;
         echo '✓ Environment info displayed!' . PHP_EOL;
