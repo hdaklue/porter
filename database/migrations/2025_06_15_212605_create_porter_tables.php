@@ -21,8 +21,8 @@ return new class() extends Migration
                 $table->id();
 
                 // Model type columns (optimized for MySQL key length limits)
-                $table->string('assignable_type', 100); // assignable model type (e.g., "App\Models\User")
-                $table->string('roleable_type', 100);   // Entity type (e.g., "App\Models\Project")
+                $table->string('assignable_type', 100); // Realistic class name length
+                $table->string('roleable_type', 100);   // Realistic class name length
 
                 // ID columns - type depends on configured strategy
                 match ($idStrategy) {
@@ -40,7 +40,7 @@ return new class() extends Migration
                     ]
                 };
 
-                $table->string('role_key', 128); // Encrypted/hashed role key (optimized for MySQL indexes)
+                $table->string('role_key', 64); // Encrypted/hashed role key (64 chars for SHA-256)
                 $table->timestamps();
 
                 // Database constraints (only if Blueprint::check method exists)
@@ -56,9 +56,10 @@ return new class() extends Migration
                     }
                 }
 
+                // Composite unique constraint - optimized column order for MySQL
                 $table->unique(
                     ['assignable_type', 'assignable_id', 'roleable_type', 'roleable_id', 'role_key'],
-                    'porter_unique',
+                    'porter_unique'
                 );
 
                 // Performance indexes
