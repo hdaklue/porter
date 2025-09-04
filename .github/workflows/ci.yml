@@ -25,14 +25,6 @@ jobs:
     - name: Install dependencies
       run: composer update --prefer-stable --prefer-dist --no-interaction
 
-    - name: Check Laravel compatibility
-      run: |
-        php -r "
-        require 'vendor/autoload.php';
-        use Hdaklue\Porter\Support\LaravelCompatibility;
-        LaravelCompatibility::validate();
-        echo '✓ Laravel compatibility validated' . PHP_EOL;
-        "
 
     - name: Execute tests
       run: composer test

@@ -12,7 +12,6 @@ use Hdaklue\Porter\Contracts\RoleManagerContract;
 use Hdaklue\Porter\Middleware\RequireRole;
 use Hdaklue\Porter\Middleware\RequireRoleOn;
 use Hdaklue\Porter\RoleManager;
-use Hdaklue\Porter\Support\LaravelCompatibility;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
@@ -24,8 +23,6 @@ class PorterServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Validate Laravel compatibility
-        LaravelCompatibility::validate();
 
         // Merge config
         $this->mergeConfigFrom(

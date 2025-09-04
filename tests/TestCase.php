@@ -30,6 +30,10 @@ abstract class TestCase extends Orchestra
                 $table->string('roleable_id');
                 $table->text('role_key');
                 $table->timestamps();
+                
+                // Skip check constraints for Laravel compatibility
+                // $table->check('LENGTH(assignable_type) > 0', 'assignable_type_not_empty');
+                
                 $table->unique(['assignable_type', 'assignable_id', 'roleable_type', 'roleable_id', 'role_key'], 'porter_unique');
                 $table->index(['assignable_id', 'assignable_type'], 'porter_assignable_idx');
                 $table->index(['roleable_id', 'roleable_type'], 'porter_roleable_idx');

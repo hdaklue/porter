@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Hdaklue\Porter\Support\LaravelCompatibility;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -36,16 +35,16 @@ return new class() extends Migration
                         $table->uuid('roleable_id'),                 // For UUID IDs
                     ],
                     default => [  // 'ulid' or any other strategy
-                        $table->string('assignable_id'),             // For ULID/string IDs
-                        $table->string('roleable_id'),               // For ULID/string IDs
+                        $table->ulid('assignable_id'),             // For ULID/string IDs
+                        $table->ulid('roleable_id'),               // For ULID/string IDs
                     ]
                 };
 
                 $table->text('role_key');       // Encrypted/hashed role key (can be long)
                 $table->timestamps();
 
-                // Add database constraints if supported by current Laravel version
-                if (LaravelCompatibility::supportsCheckConstraints()) {
+                // Database constraints (only if Blueprint::check method exists)
+                if (method_exists($table, 'check')) {
                     $table->check('LENGTH(assignable_type) > 0', 'assignable_type_not_empty');
                     $table->check('LENGTH(roleable_type) > 0', 'roleable_type_not_empty');
                     $table->check('LENGTH(role_key) > 0', 'role_key_not_empty');

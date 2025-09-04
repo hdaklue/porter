@@ -50,16 +50,12 @@ jobs:
         composer require "laravel/framework:${{ matrix.laravel }}" --no-interaction --no-update
         composer update --${{ matrix.dependency-version }} --prefer-dist --no-interaction
 
-    - name: Validate Laravel compatibility
+    - name: Display environment info
       run: |
         php -r "
-        require 'vendor/autoload.php';
-        use Hdaklue\Porter\Support\LaravelCompatibility;
         echo 'PHP Version: ' . PHP_VERSION . PHP_EOL;
         echo 'Laravel Version: ' . \Illuminate\Foundation\Application::VERSION . PHP_EOL;
-        echo 'Compatibility Report: ' . json_encode(LaravelCompatibility::getCompatibilityReport(), JSON_PRETTY_PRINT) . PHP_EOL;
-        LaravelCompatibility::validate();
-        echo '✓ Laravel compatibility validation passed!' . PHP_EOL;
+        echo '✓ Environment info displayed!' . PHP_EOL;
         "
 
     - name: List installed packages
