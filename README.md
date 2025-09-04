@@ -160,8 +160,28 @@ Porter::assign($developmentTeam, $mobileApp, 'lead_developer');
 Porter::assign($designTeam, $mobileApp, 'ui_designer');
 Porter::assign($qaTeam, $mobileApp, 'tester');
 
-// Users can also have individual roles
-Porter::assign($projectManager, $mobileApp, 'project_owner');
+// Business role with domain logic
+final class LeadDeveloper extends BaseRole
+{
+    public function getName(): string { return 'lead_developer'; }
+    public function getLevel(): int { return 8; }
+    
+    public function canAssignTasks(): bool { return true; }
+    public function canMergeCode(): bool { return true; }
+    public function getMaxTeamSize(): int { return 12; }
+    public function canApproveDeployment(string $environment): bool {
+        return in_array($environment, ['staging', 'production']);
+    }
+}
+
+// Usage through assignment
+if ($user->getAssignmentOn($project)->canAssignTasks()) {
+    // Allow task assignment
+}
+
+if ($user->getAssignmentOn($project)->canApproveDeployment('production')) {
+    // Allow production deployment
+}
 ```
 
 ### SaaS Feature Consumption
@@ -171,9 +191,27 @@ Porter::assign($organization, $premiumSubscription, 'analytics_access');
 Porter::assign($organization, $premiumSubscription, 'api_access');
 Porter::assign($organization, $enterpriseSubscription, 'white_label');
 
-// Check feature access
-if ($organization->hasRoleOn($subscription, 'analytics_access')) {
-    // Show analytics dashboard
+// Business role with consumption limits
+final class AnalyticsAccess extends BaseRole
+{
+    public function getName(): string { return 'analytics_access'; }
+    public function getLevel(): int { return 3; }
+    
+    public function getMaxReports(): int { return 50; }
+    public function canExportData(): bool { return true; }
+    public function getRetentionDays(): int { return 90; }
+    public function canGenerateReport(int $count): bool {
+        return $count <= $this->getMaxReports();
+    }
+}
+
+// Usage through assignment  
+if ($organization->getAssignmentOn($subscription)->canExportData()) {
+    // Enable data export feature
+}
+
+if ($organization->getAssignmentOn($subscription)->canGenerateReport($requestedCount)) {
+    // Generate analytics reports within limits
 }
 ```
 
@@ -184,9 +222,30 @@ Porter::assign($user, $confidentialDocument, 'viewer');
 Porter::assign($legalDepartment, $contractsFolder, 'editor');
 Porter::assign($hrTeam, $personnelFolder, 'admin');
 
-// Granular document permissions
-if ($user->hasRoleOn($document, 'editor')) {
+// Business role with document constraints
+final class DocumentEditor extends BaseRole
+{
+    public function getName(): string { return 'editor'; }
+    public function getLevel(): int { return 5; }
+    
+    public function canEdit(string $fileType): bool {
+        return in_array($fileType, ['pdf', 'docx', 'txt']);
+    }
+    
+    public function canUpload(int $fileSize): bool {
+        return $fileSize <= (50 * 1024 * 1024); // 50MB limit
+    }
+    
+    public function canShareExternally(): bool { return false; }
+}
+
+// Usage through assignment
+if ($user->getAssignmentOn($document)->canEdit($document->type)) {
     // Allow document editing
+}
+
+if ($user->getAssignmentOn($folder)->canUpload($uploadFile->size)) {
+    // Allow file upload within size limits
 }
 ```
 
@@ -197,10 +256,29 @@ Porter::assign($developer, $project, 'contributor');
 Porter::assign($clientCompany, $project, 'stakeholder');
 Porter::assign($vendorTeam, $project, 'external_consultant');
 
-// Role hierarchy checks
-$userRole = Porter::getRoleOn($user, $project);
-if ($userRole && $userRole->isHigherThan(new Contributor())) {
-    // Allow project configuration
+// Business role with project permissions
+final class ProjectStakeholder extends BaseRole
+{
+    public function getName(): string { return 'stakeholder'; }
+    public function getLevel(): int { return 6; }
+    
+    public function canViewReports(): bool { return true; }
+    public function canRequestChange(int $cost): bool {
+        return $cost <= 25000; // Budget influence limit
+    }
+    
+    public function canAccessMilestone(string $milestone): bool {
+        return in_array($milestone, ['planning', 'review', 'delivery']);
+    }
+}
+
+// Usage through assignment
+if ($client->getAssignmentOn($project)->canRequestChange($changeRequest->cost)) {
+    // Process stakeholder change request
+}
+
+if ($client->getAssignmentOn($project)->canAccessMilestone('delivery')) {
+    // Allow access to delivery milestone
 }
 ```
 
@@ -210,9 +288,26 @@ if ($userRole && $userRole->isHigherThan(new Contributor())) {
 Porter::assign($user, $workspace, 'admin');
 Porter::assign($user, $anotherWorkspace, 'member');
 
-// Cross-tenant role isolation
-$workspaceRoles = Porter::getRolesOn($user, $workspace);
-// Only returns roles for this specific workspace
+// Business role with tenant permissions
+final class WorkspaceAdmin extends BaseRole
+{
+    public function getName(): string { return 'admin'; }
+    public function getLevel(): int { return 9; }
+    
+    public function canManageUsers(): bool { return true; }
+    public function canConfigureIntegrations(): bool { return true; }
+    public function canAccessBilling(): bool { return true; }
+    public function getMaxSeats(): int { return 100; }
+}
+
+// Usage through assignment
+if ($user->getAssignmentOn($workspace)->canManageUsers()) {
+    // Allow user management in this workspace
+}
+
+if ($user->getAssignmentOn($workspace)->canAccessBilling()) {
+    // Show billing settings for this workspace only
+}
 ```
 
 ### Enterprise Hierarchy Management
@@ -222,16 +317,32 @@ Porter::assign($financeTeam, $subsidiary, 'budget_approver');
 Porter::assign($auditDepartment, $division, 'compliance_reviewer');
 Porter::assign($executiveTeam, $corporation, 'strategic_decision_maker');
 
-// Business rule validation in role classes
+// Business role with enterprise constraints
 final class BudgetApprover extends BaseRole
 {
-    public function getMaxApprovalAmount(): int {
-        return 500000; // $500k limit
+    public function getName(): string { return 'budget_approver'; }
+    public function getLevel(): int { return 7; }
+    
+    public function canApprove(int $amount): bool {
+        return $amount <= 500000; // $500k limit
     }
     
     public function canApproveInRegion(string $region): bool {
-        return in_array($region, $this->getAllowedRegions());
+        return in_array($region, ['north', 'south', 'west']);
     }
+    
+    public function canOverridePolicy(string $policy): bool {
+        return in_array($policy, ['expense_approval', 'vendor_selection']);
+    }
+}
+
+// Usage through assignment
+if ($financeTeam->getAssignmentOn($subsidiary)->canApprove($budgetRequest->amount)) {
+    // Process budget approval
+}
+
+if ($financeTeam->getAssignmentOn($subsidiary)->canApproveInRegion($request->region)) {
+    // Allow regional budget approval
 }
 ```
 
