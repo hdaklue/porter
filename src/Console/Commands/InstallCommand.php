@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter\Console\Commands;
 
+use Hdaklue\Porter\Console\Concerns\NamespaceCreator;
 use Hdaklue\Porter\RoleFactory;
 use Hdaklue\Porter\Validators\RoleValidator;
 use Illuminate\Console\Command;
@@ -12,6 +13,8 @@ use Illuminate\Support\Str;
 
 final class InstallCommand extends Command
 {
+    use NamespaceCreator;
+
     protected $signature = 'porter:install {--force : Overwrite existing files} {--roles : Create default role classes}';
 
     protected $description = 'Install Porter RBAC package - publish config, run migrations, and create default roles';
@@ -104,8 +107,7 @@ final class InstallCommand extends Command
     {
         $this->info('📁 Creating Porter directory...');
 
-        $dir = base_path('App/Porter');
-        // $dir = 'App\Porter';
+        $dir = $this->getPorterDirectory();
         if (! File::exists($dir)) {
             File::makeDirectory($dir, 0755, true);
             $this->info("✅ Created Porter directory: {$dir}");
@@ -120,7 +122,7 @@ final class InstallCommand extends Command
     {
         $this->info('🎭 Creating default role classes...');
 
-        $porterDir = app_path('Porter');
+        $porterDir = $this->getPorterDirectory();
 
         $roles = $this->getDefaultRoles();
 
@@ -167,6 +169,11 @@ final class InstallCommand extends Command
 
     private function createRoleFile(string $name, int $level, string $description, string $directory): void
     {
+        // Ensure directory exists before creating files - inspired by GeneratorCommand pattern
+        if (! File::exists($directory)) {
+            File::makeDirectory($directory, 0755, true);
+        }
+
         $filename = "{$name}.php";
         $filepath = "{$directory}/{$filename}";
 
@@ -177,7 +184,7 @@ final class InstallCommand extends Command
         }
 
         $stub = $this->getRoleStub();
-        $namespace = 'App\\Porter';
+        $namespace = $this->rootNamespace();
         $content = str_replace(
             ['{{name}}', '{{level}}', '{{description}}', '{{snake_name}}', '{{namespace}}'],
             [$name, $level, $description, Str::snake($name), $namespace],
@@ -209,4 +216,5 @@ final class InstallCommand extends Command
 
         return $plainKey;
     }
+
 }

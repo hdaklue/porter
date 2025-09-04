@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter\Console\Commands;
 
+use Hdaklue\Porter\Console\Concerns\NamespaceCreator;
 use Hdaklue\Porter\RoleFactory;
 use Hdaklue\Porter\Validators\RoleValidator;
 use Illuminate\Console\Command;
@@ -13,6 +14,8 @@ use InvalidArgumentException;
 
 final class CreateRoleCommand extends Command
 {
+    use NamespaceCreator;
+
     protected static string $porterDir = 'Porter';
 
     protected $signature = 'porter:create {name? : The role name} {--description= : The role description}';
@@ -337,7 +340,7 @@ final class CreateRoleCommand extends Command
 
     private function createRoleFile(string $name, int $level, string $description): void
     {
-        $porterDir = app_path(self::$porterDir);
+        $porterDir = $this->getPorterDirectory();
 
         if (! File::exists($porterDir)) {
             File::makeDirectory($porterDir, 0755, true);
@@ -345,7 +348,7 @@ final class CreateRoleCommand extends Command
 
         $filepath = "{$porterDir}/{$name}.php";
         $stub = $this->getRoleStub();
-        $namespace = config('porter.namespace');
+        $namespace = $this->rootNamespace();
 
         $content = str_replace(
             ['{{name}}', '{{level}}', '{{description}}', '{{snake_name}}', '{{namespace}}'],
@@ -430,4 +433,5 @@ final class CreateRoleCommand extends Command
             RoleFactory::clearCache();
         }
     }
+
 }
