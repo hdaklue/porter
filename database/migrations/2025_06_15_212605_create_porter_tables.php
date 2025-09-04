@@ -20,9 +20,9 @@ return new class() extends Migration
             ->create(config('porter.table_names.roster'), static function (Blueprint $table) use ($idStrategy) {
                 $table->id();
 
-                // Model type columns (always strings for class names)
-                $table->string('assignable_type'); // assignable model type
-                $table->string('roleable_type');   // Entity type (Project, Organization, etc.)
+                // Model type columns (optimized for MySQL key length limits)
+                $table->string('assignable_type', 100); // assignable model type (e.g., "App\Models\User")
+                $table->string('roleable_type', 100);   // Entity type (e.g., "App\Models\Project")
 
                 // ID columns - type depends on configured strategy
                 match ($idStrategy) {
@@ -40,7 +40,7 @@ return new class() extends Migration
                     ]
                 };
 
-                $table->string('role_key', 500); // Fixed: Encrypted/hashed role key (limited length for indexes)
+                $table->string('role_key', 128); // Encrypted/hashed role key (optimized for MySQL indexes)
                 $table->timestamps();
 
                 // Database constraints (only if Blueprint::check method exists)

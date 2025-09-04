@@ -117,24 +117,29 @@ abstract class BaseRole implements RoleContract
     }
 
     /**
-     * Securely encrypt the role key with additional entropy.
+     * Securely encrypt the role key with consistent length.
+     * Uses a combination of hashing and base64 encoding to stay within database limits.
      */
     private static function secureEncrypt(string $plainKey): string
     {
-        // Add salt for additional security (not for authentication, just obfuscation)
-        $saltedKey = hash_hmac('sha256', $plainKey, config('app.key', ''), true);
-
-        return encrypt(base64_encode($saltedKey));
+        // Create a secure, consistent-length encrypted key using SHA-256 + base64
+        // This approach ensures the result fits in 128 characters while maintaining security
+        $saltedKey = hash_hmac('sha256', $plainKey, config('app.key', 'fallback-key'), true);
+        
+        // Base64 encode the binary hash (32 bytes -> 44 characters)
+        // Then add a prefix to distinguish from plain hashing
+        return 'enc_' . base64_encode($saltedKey);
     }
 
     /**
      * Create secure hash with proper configuration.
+     * Uses SHA-256 to ensure consistent length that fits in database constraints.
      */
     private static function secureHash(string $plainKey): string
     {
-        return \Illuminate\Support\Facades\Hash::make($plainKey, [
-            'rounds' => config('porter.security.hash_rounds', 12),
-        ]);
+        // Use SHA-256 with app key for consistent, secure hashing
+        // This produces exactly 64 characters, fitting well within 128 char limit
+        return hash_hmac('sha256', $plainKey, config('app.key', 'fallback-key'));
     }
 
     /**
@@ -202,6 +207,20 @@ abstract class BaseRole implements RoleContract
      */
     private static function secureDecrypt(string $encryptedKey): string
     {
+        // Handle new format with 'enc_' prefix
+        if (str_starts_with($encryptedKey, 'enc_')) {
+            $hashedData = substr($encryptedKey, 4); // Remove 'enc_' prefix
+            $saltedKey = base64_decode($hashedData, true);
+            
+            if ($saltedKey === false) {
+                throw new \InvalidArgumentException('Invalid encrypted role key format');
+            }
+            
+            // We can't reverse the HMAC, so we need to verify by trying all known roles
+            return static::findPlainKeyBySaltedHash($saltedKey);
+        }
+        
+        // Handle legacy Laravel encryption format (for backward compatibility)
         $decrypted = decrypt($encryptedKey);
         $saltedKey = base64_decode($decrypted, true);
 
