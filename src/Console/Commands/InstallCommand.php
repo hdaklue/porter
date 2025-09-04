@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
-class InstallCommand extends Command
+final class InstallCommand extends Command
 {
     protected $signature = 'porter:install {--force : Overwrite existing files} {--roles : Create default role classes}';
 
@@ -103,7 +103,7 @@ class InstallCommand extends Command
     {
         $this->info('📁 Creating Porter directory...');
 
-        $dir = base_path('Porter');
+        $dir = base_path('App/Porter');
         // $dir = 'App\Porter';
         if (! File::exists($dir)) {
             File::makeDirectory($dir, 0755, true);
@@ -119,7 +119,7 @@ class InstallCommand extends Command
     {
         $this->info('🎭 Creating default role classes...');
 
-        $porterDir = config('porter.directory', app_path('Porter'));
+        $porterDir = app_path('Porter');
 
         $roles = $this->getDefaultRoles();
 
@@ -180,7 +180,7 @@ class InstallCommand extends Command
         $content = str_replace(
             ['{{name}}', '{{level}}', '{{description}}', '{{snake_name}}', '{{namespace}}'],
             [$name, $level, $description, Str::snake($name), $namespace],
-            $stub
+            $stub,
         );
 
         File::put($filepath, $content);
