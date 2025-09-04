@@ -5,11 +5,21 @@ namespace Hdaklue\Porter\Concerns;
 use Hdaklue\Porter\Contracts\AssignableEntity;
 use Hdaklue\Porter\Contracts\RoleContract;
 use Hdaklue\Porter\Facades\Porter;
+use Hdaklue\Porter\Models\Roster;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 trait ReceivesRoleAssignments
 {
+    /**
+     * roleAssignments.
+     */
+    public function roleAssignments(): MorphMany
+    {
+        return $this->morphMany(config('porter.models.roster', Roster::class), 'roleable');
+    }
+
     public function assign(AssignableEntity $entity, RoleContract $role): void
     {
         Porter::assign($entity, $this, $role->getName());
