@@ -61,4 +61,10 @@ interface RoleContract
      * Get all available role instances.
      */
     public static function all(): array;
+
+    /**
+     * Get the database key for this role.
+     * Returns encrypted/hashed version of role name for secure storage.
+     */
+    public static function getDbKey(): string;
 }

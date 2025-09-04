@@ -85,7 +85,7 @@ test('Roster model retrieves role instance from role_key', function () {
 
 test('Roster model uses correct table name from config', function () {
     $roster = new Roster();
-    expect($roster->getTable())->toBe('roaster');
+    expect($roster->getTable())->toBe('roster');
 });
 
 test('Roster model retrieves role database key correctly', function () {

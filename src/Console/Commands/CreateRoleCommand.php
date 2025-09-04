@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter\Console\Commands;
 
+use Hdaklue\Porter\RoleFactory;
 use Hdaklue\Porter\Validators\RoleValidator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -21,6 +22,7 @@ final class CreateRoleCommand extends Command
     public function handle(): int
     {
         RoleValidator::clearCache(); // Ensure a clean cache for the command execution
+        RoleFactory::clearCache(); // Clear RoleFactory file existence cache
         $this->info('🎭 Creating a new Porter role...');
         $this->newLine();
 
@@ -93,10 +95,10 @@ final class CreateRoleCommand extends Command
         $this->createRoleFile($name, $level, $description);
 
         $this->info("✅ Role '{$name}' created successfully!");
-        $this->info('📁 Location: ' . app_path("Porter/{$name}.php"));
+        $this->info('📁 Location: '.app_path("Porter/{$name}.php"));
         $this->info("🔢 Level: {$level}");
         $this->info("📝 Description: {$description}");
-        $this->info('🔑 Key: ' . $this->generateRoleKey($name));
+        $this->info('🔑 Key: '.$this->generateRoleKey($name));
 
         $this->newLine();
         $this->info("Don't forget to:");
@@ -299,7 +301,7 @@ final class CreateRoleCommand extends Command
 
         // Check for duplicate level against the updated levels
         if (isset($updatedLevels[$level])) {
-            $this->error("❌ Role level '{$level}' is already used by role: " . $updatedLevels[$level]);
+            $this->error("❌ Role level '{$level}' is already used by role: ".$updatedLevels[$level]);
             $this->info('Each role must have a unique level. Choose a different level.');
 
             return false;
@@ -355,11 +357,12 @@ final class CreateRoleCommand extends Command
 
         // Clear cache since we've modified role files
         RoleValidator::clearCache();
+        RoleFactory::clearCache();
     }
 
     private function getRoleStub(): string
     {
-        return File::get(__DIR__ . '/../../../resources/stubs/role.stub');
+        return File::get(__DIR__.'/../../../resources/stubs/role.stub');
     }
 
     private function generateRoleKey(string $name): string
@@ -368,7 +371,7 @@ final class CreateRoleCommand extends Command
         $storage = config('porter.security.key_storage', 'hashed');
 
         if ($storage === 'hashed') {
-            return hash('sha256', $plainKey . config('app.key'));
+            return hash('sha256', $plainKey.config('app.key'));
         }
 
         return $plainKey;
@@ -424,6 +427,7 @@ final class CreateRoleCommand extends Command
 
             // Clear cache after each role update
             RoleValidator::clearCache();
+            RoleFactory::clearCache();
         }
     }
 }

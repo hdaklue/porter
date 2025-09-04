@@ -21,7 +21,7 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
  * Route::get('/admin', AdminController::class)->middleware('porter.role:admin,manager');
  * Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])
  *     ->middleware('porter.role:admin,editor');
- * 
+ *
  * Any role functionality (requires any role on detected entity):
  * Route::get('/projects/{project}/dashboard', [ProjectController::class, 'dashboard'])
  *     ->middleware('porter.role:*');

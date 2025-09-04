@@ -91,7 +91,7 @@ final class Roster extends Model
 
     public function getTable(): string
     {
-        return config('porter.table_names.roaster', 'roaster');
+        return config('porter.table_names.roster', 'roster');
     }
 
     public function getRoleDBKey(): string

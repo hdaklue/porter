@@ -86,7 +86,7 @@ return [
     |
     */
     'table_names' => [
-        'roaster' => 'roaster',
+        'roster' => 'roster',
     ],
 
     'column_names' => [

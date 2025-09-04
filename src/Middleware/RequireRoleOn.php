@@ -22,7 +22,7 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
  *     ->middleware('porter.role_on:project,admin,editor');
  * Route::delete('/organizations/{org}/members/{user}', [MemberController::class, 'destroy'])
  *     ->middleware('porter.role_on:org,admin,manager');
- * 
+ *
  * Any role functionality:
  * Route::get('/projects/{project}/dashboard', [ProjectController::class, 'dashboard'])
  *     ->middleware('porter.role_on:project,*');

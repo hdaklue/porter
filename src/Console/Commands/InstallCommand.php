@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter\Console\Commands;
 
+use Hdaklue\Porter\RoleFactory;
 use Hdaklue\Porter\Validators\RoleValidator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -189,6 +190,7 @@ final class InstallCommand extends Command
 
         // Clear cache since we've created a new role file
         RoleValidator::clearCache();
+        RoleFactory::clearCache();
     }
 
     private function getRoleStub(): string

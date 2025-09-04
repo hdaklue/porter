@@ -7,7 +7,6 @@ namespace Hdaklue\Porter\Tests;
 use Hdaklue\Porter\Providers\PorterServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
@@ -21,8 +20,8 @@ abstract class TestCase extends Orchestra
         parent::setUp();
 
         // Create the table directly in tests to avoid migration issues
-        if (! Schema::hasTable('roaster')) {
-            Schema::create('roaster', function ($table) {
+        if (! Schema::hasTable('roster')) {
+            Schema::create('roster', function ($table) {
                 $table->id();
                 $table->string('assignable_type');
                 $table->string('roleable_type');
@@ -30,10 +29,10 @@ abstract class TestCase extends Orchestra
                 $table->string('roleable_id');
                 $table->text('role_key');
                 $table->timestamps();
-                
+
                 // Skip check constraints for Laravel compatibility
                 // $table->check('LENGTH(assignable_type) > 0', 'assignable_type_not_empty');
-                
+
                 $table->unique(['assignable_type', 'assignable_id', 'roleable_type', 'roleable_id', 'role_key'], 'porter_unique');
                 $table->index(['assignable_id', 'assignable_type'], 'porter_assignable_idx');
                 $table->index(['roleable_id', 'roleable_type'], 'porter_roleable_idx');
@@ -78,7 +77,7 @@ abstract class TestCase extends Orchestra
         $app['config']->set('porter.database_connection', 'porter-connection');
 
         // Configure role table names
-        $app['config']->set('porter.table_names.roaster', 'roaster');
+        $app['config']->set('porter.table_names.roster', 'roster');
         $app['config']->set('porter.column_names.role_key', 'role_key');
 
         // Configure test roles
@@ -90,6 +89,10 @@ abstract class TestCase extends Orchestra
 
         // Configure models
         $app['config']->set('porter.models.roster', \Hdaklue\Porter\Models\Roster::class);
+
+        // Configure Porter directory and namespace for testing
+        $app['config']->set('porter.directory', app_path('Porter'));
+        $app['config']->set('porter.namespace', 'App\\Porter');
 
         // Configure security (use plain text for simpler testing)
         $app['config']->set('porter.security.key_storage', 'plain');

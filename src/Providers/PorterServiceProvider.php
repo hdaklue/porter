@@ -110,7 +110,7 @@ class PorterServiceProvider extends ServiceProvider
             return $user->hasAssignmentOn($target, $role);
         });
 
-        // @isAssignedTo($user, $entity) 
+        // @isAssignedTo($user, $entity)
         Blade::if('isAssignedTo', function ($user, $entity) {
             return $user->isAssignedTo($entity);
         });

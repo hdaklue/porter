@@ -86,8 +86,8 @@ final class DoctorCommand extends Command
     {
         $this->info('📊 Checking database migrations...');
 
-        if (! Schema::hasTable('roaster')) {
-            $this->errors[] = 'Required table "roaster" not found. Run migrations: "php artisan migrate"';
+        if (! Schema::hasTable(config('porter.table_names.roster', 'roster'))) {
+            $this->errors[] = 'Required table "roster" not found. Run migrations: "php artisan migrate"';
 
             return;
         }
@@ -96,13 +96,13 @@ final class DoctorCommand extends Command
         $missingColumns = [];
 
         foreach ($requiredColumns as $column) {
-            if (! Schema::hasColumn('roaster', $column)) {
+            if (! Schema::hasColumn(config('porter.table_names.roster', 'roster'), $column)) {
                 $missingColumns[] = $column;
             }
         }
 
         if (! empty($missingColumns)) {
-            $this->errors[] = 'Missing columns in roaster table: '.implode(', ', $missingColumns);
+            $this->errors[] = 'Missing columns in roster table: '.implode(', ', $missingColumns);
         } else {
             $this->info('✅ Database structure verified');
         }

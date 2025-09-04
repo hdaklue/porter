@@ -16,11 +16,10 @@
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
         </testsuite>
-        <!-- Feature tests partially work, but disabled due to migration compatibility -->
-        <!-- Working: CreateRoleCommandTest, RoleFactoryTest, InstallCommandTest -->
-        <!-- <testsuite name="Feature">
+        <!-- Feature tests now working with fixed configuration -->
+        <testsuite name="Feature">
             <directory>tests/Feature</directory>
-        </testsuite> -->
+        </testsuite>
     </testsuites>
     <source>
         <include>

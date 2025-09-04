@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Hdaklue\Porter;
 
 use Hdaklue\Porter\Roles\BaseRole;
-use Hdaklue\Porter\Validators\RoleValidator;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -17,6 +16,11 @@ use InvalidArgumentException;
  */
 final class RoleFactory
 {
+    /**
+     * Cache for file existence checks to avoid repeated file system access.
+     */
+    private static array $fileExistsCache = [];
+
     /**
      * Create a Role Class instance from role key (plain or encrypted).
      *
@@ -112,10 +116,15 @@ final class RoleFactory
         $porterDir = config('porter.directory');
         $namespace = config('porter.namespace');
 
-        // Direct file check to avoid circular dependency with RoleValidator
+        // Handle null config values
+        if (! $porterDir || ! $namespace) {
+            throw new InvalidArgumentException('Porter directory or namespace not configured.');
+        }
+
+        // Use cached file check to avoid repeated file system access
         $filePath = "{$porterDir}/{$roleName}.php";
 
-        if (! file_exists($filePath)) {
+        if (! self::cachedFileExists($filePath)) {
             throw new InvalidArgumentException("Role '{$roleName}' does not exist in Porter directory '{$porterDir}'.");
         }
 
@@ -146,6 +155,11 @@ final class RoleFactory
         $porterDir = config('porter.directory');
         $namespace = config('porter.namespace');
         $result = [];
+
+        // Handle null config values
+        if (! $porterDir || ! $namespace) {
+            return $result;
+        }
 
         // Direct file scanning to avoid circular dependency
         if (! is_dir($porterDir)) {
@@ -184,9 +198,45 @@ final class RoleFactory
      */
     public static function existsInPorterDirectory(string $roleName): bool
     {
+        if ($roleName === 'BaseRole') {
+            return false;
+        }
+
         $porterDir = config('porter.directory');
+
+        // Handle null config value
+        if (! $porterDir) {
+            return false;
+        }
+
         $filePath = "{$porterDir}/{$roleName}.php";
 
-        return file_exists($filePath) && $roleName !== 'BaseRole';
+        return self::cachedFileExists($filePath);
+    }
+
+    /**
+     * Cached file existence check to avoid repeated file system calls.
+     * In development/testing environments, caching is disabled for dynamic role discovery.
+     */
+    private static function cachedFileExists(string $filePath): bool
+    {
+        // Skip caching in local/testing environments for better developer experience
+        if (app()->environment(['local', 'testing'])) {
+            return file_exists($filePath);
+        }
+
+        if (! isset(self::$fileExistsCache[$filePath])) {
+            self::$fileExistsCache[$filePath] = file_exists($filePath);
+        }
+
+        return self::$fileExistsCache[$filePath];
+    }
+
+    /**
+     * Clear the file existence cache. Useful for testing or when roles are added/removed.
+     */
+    public static function clearCache(): void
+    {
+        self::$fileExistsCache = [];
     }
 }
