@@ -27,41 +27,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Porter Directory
-    |--------------------------------------------------------------------------
-    |
-    | The directory where Porter role classes are stored.
-    | This should be an absolute path or relative to the app directory.
-    |
-    */
-    // 'directory' => env('PORTER_DIRECTORY'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Role Namespace
-    |--------------------------------------------------------------------------
-    |
-    | The namespace where Porter role classes are located.
-    | This should match the directory structure.
-    |
-    */
-    // 'namespace' => env('PORTER_NAMESPACE', 'App\\Porter'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Available Roles
-    |--------------------------------------------------------------------------
-    |
-    | Porter automatically discovers roles from your Porter directory.
-    | No manual configuration needed - just create role classes that extend BaseRole.
-    |
-    | Directory: config('porter.directory')
-    | Namespace: config('porter.namespace')
-    |
-    */
-
-    /*
-    |--------------------------------------------------------------------------
     | ID Strategy Configuration
     |--------------------------------------------------------------------------
     |
