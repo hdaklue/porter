@@ -103,13 +103,13 @@ class InstallCommand extends Command
     {
         $this->info('📁 Creating Porter directory...');
 
-        $porterDir = config('porter.directory', app_path('Porter'));
-
-        if (! File::exists($porterDir)) {
-            File::makeDirectory($porterDir, 0755, true);
-            $this->info("✅ Created Porter directory: {$porterDir}");
+        $dir = base_path('Porter');
+        // $dir = 'App\Porter';
+        if (! File::exists($dir)) {
+            File::makeDirectory($dir, 0755, true);
+            $this->info("✅ Created Porter directory: {$dir}");
         } else {
-            $this->info("📁 Porter directory already exists: {$porterDir}");
+            $this->info("📁 Porter directory already exists: {$dir}");
         }
 
         // Note: We don't create BaseRole.php - users should extend from the package BaseRole directly

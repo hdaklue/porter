@@ -17,7 +17,7 @@ return new class() extends Migration
         $idStrategy = config('porter.id_strategy', 'ulid');
 
         Schema::connection($connection)
-            ->create(config('porter.table_names.roaster'), static function (Blueprint $table) use ($idStrategy) {
+            ->create(config('porter.table_names.roster'), static function (Blueprint $table) use ($idStrategy) {
                 $table->id();
 
                 // Model type columns (always strings for class names)
@@ -79,6 +79,6 @@ return new class() extends Migration
     {
         $connection = config('porter.database_connection') ?: config('database.default');
 
-        Schema::connection($connection)->dropIfExists(config('porter.table_names.roaster', 'roaster'));
+        Schema::connection($connection)->dropIfExists(config('porter.table_names.roster', 'roster'));
     }
 };

@@ -8,9 +8,12 @@ use Hdaklue\Porter\Validators\RoleValidator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
-class CreateRoleCommand extends Command
+final class CreateRoleCommand extends Command
 {
+    protected static string $porterDir = 'Porter';
+
     protected $signature = 'porter:create {name? : The role name} {--description= : The role description}';
 
     protected $description = 'Create a new Porter role class';
@@ -27,7 +30,7 @@ class CreateRoleCommand extends Command
         $name = RoleValidator::normalizeName($name);
 
         // Check for duplicate names early using RoleValidator
-        $porterDir = config('porter.directory');
+        $porterDir = app_path('Porter');
         if (RoleValidator::nameExists($name, $porterDir)) {
             $this->error("❌ Role name '{$name}' already exists!");
 
@@ -54,7 +57,7 @@ class CreateRoleCommand extends Command
         // Calculate level and roles to update using RoleValidator
         try {
             [$level, $rolesToUpdate] = RoleValidator::calculateLevel($creationMode, $targetRole, $porterDir);
-        } catch (\InvalidArgumentException $e) {
+        } catch (InvalidArgumentException $e) {
             $this->error($e->getMessage());
 
             return Command::FAILURE;
@@ -90,10 +93,10 @@ class CreateRoleCommand extends Command
         $this->createRoleFile($name, $level, $description);
 
         $this->info("✅ Role '{$name}' created successfully!");
-        $this->info('📁 Location: '.app_path("Porter/{$name}.php"));
+        $this->info('📁 Location: ' . app_path("Porter/{$name}.php"));
         $this->info("🔢 Level: {$level}");
         $this->info("📝 Description: {$description}");
-        $this->info('🔑 Key: '.$this->generateRoleKey($name));
+        $this->info('🔑 Key: ' . $this->generateRoleKey($name));
 
         $this->newLine();
         $this->info("Don't forget to:");
@@ -173,7 +176,7 @@ class CreateRoleCommand extends Command
 
     private function askForCreationMode(): string
     {
-        $porterDir = config('porter.directory');
+        $porterDir = app_path(self::$porterDir);
         $options = RoleValidator::getCreationModeOptions($porterDir);
 
         $this->info('How would you like to position this role?');
@@ -236,6 +239,7 @@ class CreateRoleCommand extends Command
 
             if (empty($name)) {
                 $this->error('Role name is required.');
+
                 continue;
             }
 
@@ -295,7 +299,7 @@ class CreateRoleCommand extends Command
 
         // Check for duplicate level against the updated levels
         if (isset($updatedLevels[$level])) {
-            $this->error("❌ Role level '{$level}' is already used by role: ".$updatedLevels[$level]);
+            $this->error("❌ Role level '{$level}' is already used by role: " . $updatedLevels[$level]);
             $this->info('Each role must have a unique level. Choose a different level.');
 
             return false;
@@ -331,7 +335,7 @@ class CreateRoleCommand extends Command
 
     private function createRoleFile(string $name, int $level, string $description): void
     {
-        $porterDir = config('porter.directory');
+        $porterDir = app_path(self::$porterDir);
 
         if (! File::exists($porterDir)) {
             File::makeDirectory($porterDir, 0755, true);
@@ -344,7 +348,7 @@ class CreateRoleCommand extends Command
         $content = str_replace(
             ['{{name}}', '{{level}}', '{{description}}', '{{snake_name}}', '{{namespace}}'],
             [$name, $level, $description, Str::snake($name), $namespace],
-            $stub
+            $stub,
         );
 
         File::put($filepath, $content);
@@ -355,7 +359,7 @@ class CreateRoleCommand extends Command
 
     private function getRoleStub(): string
     {
-        return File::get(__DIR__.'/../../../resources/stubs/role.stub');
+        return File::get(__DIR__ . '/../../../resources/stubs/role.stub');
     }
 
     private function generateRoleKey(string $name): string
@@ -364,7 +368,7 @@ class CreateRoleCommand extends Command
         $storage = config('porter.security.key_storage', 'hashed');
 
         if ($storage === 'hashed') {
-            return hash('sha256', $plainKey.config('app.key'));
+            return hash('sha256', $plainKey . config('app.key'));
         }
 
         return $plainKey;
@@ -380,12 +384,14 @@ class CreateRoleCommand extends Command
             // CRITICAL: Final safety check before writing to file
             if ($newLevel < 1) {
                 $this->error("CRITICAL: Attempted to write invalid level {$newLevel} for role {$role['name']}. Level must be 1 or higher.");
+
                 continue;
             }
 
             // CRITICAL: Ensure old level is also valid (should never happen, but safety first)
             if ($oldLevel < 1) {
                 $this->error("CRITICAL: Found invalid old level {$oldLevel} for role {$role['name']}. Skipping update.");
+
                 continue;
             }
 
@@ -397,17 +403,19 @@ class CreateRoleCommand extends Command
                 "/function getLevel\(\):\s*int\s*{\s*return\s+{$oldLevel};/s",
                 "function getLevel(): int\n    {\n        return {$newLevel};",
                 $content,
-                1 // Only replace the first occurrence
+                1, // Only replace the first occurrence
             );
 
             if ($content === null) {
                 $this->error("Failed to update level for role: {$role['name']}. Regex replacement failed.");
+
                 continue;
             }
 
             // CRITICAL: Verify the replacement actually happened
             if (! str_contains($content, "return {$newLevel};")) {
                 $this->error("CRITICAL: Level replacement verification failed for role {$role['name']}. File not updated.");
+
                 continue;
             }
 

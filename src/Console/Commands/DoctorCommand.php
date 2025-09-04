@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 
-class DoctorCommand extends Command
+final class DoctorCommand extends Command
 {
     protected $signature = 'porter:doctor {--fix : Attempt to fix issues automatically}';
 
@@ -65,7 +65,7 @@ class DoctorCommand extends Command
         }
 
         // Check if Porter directory exists and has roles
-        $porterDir = config('porter.directory');
+        $porterDir = app_path('Porter');
         if (! is_dir($porterDir)) {
             $this->warnings[] = "Porter directory does not exist: {$porterDir}";
         } else {
@@ -244,7 +244,7 @@ class DoctorCommand extends Command
     {
         $this->info('⚙️ Checking role files...');
 
-        $porterDir = config('porter.directory', app_path('Porter'));
+        $porterDir = app_path('Porter');
 
         if (! File::exists($porterDir)) {
             $this->warnings[] = "Porter directory does not exist: {$porterDir}";
