@@ -8,8 +8,6 @@ A lightweight, blazing-fast Laravel access control package that treats roles as 
 
 **Perfect for**: [Team collaboration](#team-collaboration-platform), [SaaS feature consumption](#saas-feature-consumption), [document management](#document-management-system), [project access control](#project-management-system), [multi-tenant applications](#multi-tenant-application), and [enterprise hierarchies](#enterprise-hierarchy-management).
 
-> "Current RBAC systems were made for CMSs."
-
 ## 🎥 Video Demos Needed
 
 Porter is seeking a co-maintainer to create video demos and tutorials showcasing the package features and usage. If you're interested in creating educational content for this Laravel package, please contact hassan@daklue.com
