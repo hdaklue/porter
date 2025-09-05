@@ -70,7 +70,7 @@ interface RoleManagerContract
     /**
      * Get the role key for user on target entity.
      */
-    public function getRoleOn(AssignableEntity $user, RoleableEntity $target): ?string;
+    public function getRoleOn(AssignableEntity $user, RoleableEntity $target): ?RoleContract;
 
     /**
      * Ensure that a role exists in the system.

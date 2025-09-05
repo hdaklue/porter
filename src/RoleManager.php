@@ -371,7 +371,7 @@ final class RoleManager implements RoleManagerContract
     /**
      * Get the role key for user on target entity.
      */
-    public function getRoleOn(AssignableEntity $user, RoleableEntity $target): ?string
+    public function getRoleOn(AssignableEntity $user, RoleableEntity $target): ?RoleContract
     {
         $encryptedKey = Roster::where([
             'assignable_id' => $user->getKey(),
@@ -383,7 +383,7 @@ final class RoleManager implements RoleManagerContract
         if ($encryptedKey) {
             $role = RoleFactory::tryMake($encryptedKey);
 
-            return $role?->getPlainKey();
+            return $role;
         }
 
         return null;
