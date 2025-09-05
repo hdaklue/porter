@@ -378,7 +378,7 @@ final class RoleManager implements RoleManagerContract
             'assignable_type' => $user->getMorphClass(),
             'roleable_type' => $target->getMorphClass(),
             'roleable_id' => $target->getKey(),
-        ])->first()?->role_key;
+        ])->first()?->role_key::getDbKey();
 
         if ($encryptedKey) {
             $role = RoleFactory::tryMake($encryptedKey);
