@@ -50,7 +50,7 @@ trait CanBeAssignedToEntity
     {
         $role = $this->getAssignmentOn($roleableEntity);
 
-        if (! empty($role)) {
+        if (empty($role)) {
             return false;
         }
 
