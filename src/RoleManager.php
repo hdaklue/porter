@@ -106,6 +106,11 @@ final class RoleManager implements RoleManagerContract
         $this->clearAssignableEntityCache($user, $target->getMorphClass());
     }
 
+    public function check(AssignableEntity $assignableEntity, RoleableEntity $roleableEntity, RoleContract $roleContract): bool
+    {
+        return $assignableEntity->hasAssigmentOn($roleableEntity, $roleContract);
+    }
+
     /**
      * Internal method to remove roles within a transaction context.
      */

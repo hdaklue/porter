@@ -33,7 +33,7 @@ trait CanBeAssignedToEntity
      */
     public function hasAssignmentOn(RoleableEntity $target, RoleContract $role): bool
     {
-        return Porter::hasRoleOn($this, $target, $role->getName());
+        return Porter::hasRoleOn($this, $target, $role);
 
     }
 

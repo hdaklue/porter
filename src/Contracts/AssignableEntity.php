@@ -22,6 +22,11 @@ interface AssignableEntity
     public function getMorphClass();
 
     /**
+     * hasAssignmentOn.
+     */
+    public function hasAssignmentOn(RoleableEntity $target, RoleContract $role);
+
+    /**
      * Unique identifier of the actor (model_id).
      */
     public function getKey();
