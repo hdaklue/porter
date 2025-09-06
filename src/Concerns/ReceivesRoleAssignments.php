@@ -30,8 +30,34 @@ trait ReceivesRoleAssignments
         Porter::remove($entity, $this);
     }
 
+    #[Scope]
+    public function scopeWithAssignmentsTo(Builder $query, AssignableEntity $assignable): Builder
+    {
+        $rosterModel = config('porter.models.roster', Roster::class);
+        $rosterConnection = (new $rosterModel())->getConnectionName();
+        $currentConnection = $query->getModel()->getConnectionName();
+
+        // If roster uses a different database connection, use direct query approach
+        if ($rosterConnection !== $currentConnection) {
+            $entityIds = $rosterModel::where('assignable_type', $assignable->getMorphClass())
+                ->where('assignable_id', $assignable->getKey())
+                ->where('roleable_type', $query->getModel()->getMorphClass())
+                ->pluck('roleable_id');
+
+            return $query->whereIn($query->getModel()->getKeyName(), $entityIds);
+        }
+
+        // Use standard whereHas for same-database relationships
+        return $query->whereHas('roleAssignments', function ($q) use ($assignable) {
+            $q->where('assignable_type', $assignable->getMorphClass())
+                ->where('assignable_id', $assignable->getKey());
+        });
+    }
+
     /**
      * Scope to find entities that have assignments from a specific assignable entity.
+     *
+     * @deprecated use WithAssignmentsTo
      */
     #[Scope]
     public function scopeWithAssignmentsFrom(Builder $query, AssignableEntity $assignable): Builder
@@ -48,6 +74,20 @@ trait ReceivesRoleAssignments
     #[Scope]
     public function scopeWithRole(Builder $query, RoleContract $role): Builder
     {
+        $rosterModel = config('porter.models.roster', Roster::class);
+        $rosterConnection = (new $rosterModel())->getConnectionName();
+        $currentConnection = $query->getModel()->getConnectionName();
+
+        // If roster uses a different database connection, use direct query approach
+        if ($rosterConnection !== $currentConnection) {
+            $entityIds = $rosterModel::where('role_key', $role::getDbKey())
+                ->where('roleable_type', $query->getModel()->getMorphClass())
+                ->pluck('roleable_id');
+
+            return $query->whereIn($query->getModel()->getKeyName(), $entityIds);
+        }
+
+        // Use standard whereHas for same-database relationships
         return $query->whereHas('roleAssignments', function ($q) use ($role) {
             $q->where('role_key', $role::getDbKey());
         });
@@ -59,6 +99,22 @@ trait ReceivesRoleAssignments
     #[Scope]
     public function scopeWithAssignmentFromWithRole(Builder $query, AssignableEntity $assignable, RoleContract $role): Builder
     {
+        $rosterModel = config('porter.models.roster', Roster::class);
+        $rosterConnection = (new $rosterModel())->getConnectionName();
+        $currentConnection = $query->getModel()->getConnectionName();
+
+        // If roster uses a different database connection, use direct query approach
+        if ($rosterConnection !== $currentConnection) {
+            $entityIds = $rosterModel::where('assignable_type', $assignable->getMorphClass())
+                ->where('assignable_id', $assignable->getKey())
+                ->where('role_key', $role::getDbKey())
+                ->where('roleable_type', $query->getModel()->getMorphClass())
+                ->pluck('roleable_id');
+
+            return $query->whereIn($query->getModel()->getKeyName(), $entityIds);
+        }
+
+        // Use standard whereHas for same-database relationships
         return $query->whereHas('roleAssignments', function ($q) use ($assignable, $role) {
             $q->where('assignable_type', $assignable->getMorphClass())
                 ->where('assignable_id', $assignable->getKey())
@@ -72,6 +128,19 @@ trait ReceivesRoleAssignments
     #[Scope]
     public function scopeWithAnyAssignments(Builder $query): Builder
     {
+        $rosterModel = config('porter.models.roster', Roster::class);
+        $rosterConnection = (new $rosterModel())->getConnectionName();
+        $currentConnection = $query->getModel()->getConnectionName();
+
+        // If roster uses a different database connection, use direct query approach
+        if ($rosterConnection !== $currentConnection) {
+            $entityIds = $rosterModel::where('roleable_type', $query->getModel()->getMorphClass())
+                ->pluck('roleable_id');
+
+            return $query->whereIn($query->getModel()->getKeyName(), $entityIds);
+        }
+
+        // Use standard has for same-database relationships
         return $query->has('roleAssignments');
     }
 
@@ -81,6 +150,19 @@ trait ReceivesRoleAssignments
     #[Scope]
     public function scopeWithoutAssignments(Builder $query): Builder
     {
+        $rosterModel = config('porter.models.roster', Roster::class);
+        $rosterConnection = (new $rosterModel())->getConnectionName();
+        $currentConnection = $query->getModel()->getConnectionName();
+
+        // If roster uses a different database connection, use direct query approach
+        if ($rosterConnection !== $currentConnection) {
+            $entityIds = $rosterModel::where('roleable_type', $query->getModel()->getMorphClass())
+                ->pluck('roleable_id');
+
+            return $query->whereNotIn($query->getModel()->getKeyName(), $entityIds);
+        }
+
+        // Use standard doesntHave for same-database relationships
         return $query->doesntHave('roleAssignments');
     }
 }

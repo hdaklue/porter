@@ -69,6 +69,21 @@ trait CanBeAssignedToEntity
     #[Scope]
     protected function scopeAssignedTo(Builder $builder, RoleableEntity $entity): Builder
     {
+        $rosterModel = config('porter.models.roster', Roster::class);
+        $rosterConnection = (new $rosterModel())->getConnectionName();
+        $currentConnection = $builder->getModel()->getConnectionName();
+
+        // If roster uses a different database connection, use direct query approach
+        if ($rosterConnection !== $currentConnection) {
+            $assignableIds = $rosterModel::where('roleable_type', $entity->getMorphClass())
+                ->where('roleable_id', $entity->getKey())
+                ->where('assignable_type', $builder->getModel()->getMorphClass())
+                ->pluck('assignable_id');
+
+            return $builder->whereIn($builder->getModel()->getKeyName(), $assignableIds);
+        }
+
+        // Use standard whereHas for same-database relationships
         return $builder->whereHas('roleAssignments', function ($query) use ($entity) {
             $query->where('roleable_type', $entity->getMorphClass())
                 ->where('roleable_id', $entity->getKey());
@@ -78,6 +93,21 @@ trait CanBeAssignedToEntity
     #[Scope]
     protected function scopeNotAssignedTo(Builder $builder, RoleableEntity $entity): Builder
     {
+        $rosterModel = config('porter.models.roster', Roster::class);
+        $rosterConnection = (new $rosterModel())->getConnectionName();
+        $currentConnection = $builder->getModel()->getConnectionName();
+
+        // If roster uses a different database connection, use direct query approach
+        if ($rosterConnection !== $currentConnection) {
+            $assignableIds = $rosterModel::where('roleable_type', $entity->getMorphClass())
+                ->where('roleable_id', $entity->getKey())
+                ->where('assignable_type', $builder->getModel()->getMorphClass())
+                ->pluck('assignable_id');
+
+            return $builder->whereNotIn($builder->getModel()->getKeyName(), $assignableIds);
+        }
+
+        // Use standard whereDoesntHave for same-database relationships
         return $builder->whereDoesntHave('roleAssignments', function ($query) use ($entity) {
             $query->where('roleable_type', $entity->getMorphClass())
                 ->where('roleable_id', $entity->getKey());
