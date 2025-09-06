@@ -73,6 +73,11 @@ interface RoleManagerContract
     public function getRoleOn(AssignableEntity $user, RoleableEntity $target): ?RoleContract;
 
     /**
+     * Check if user has at least the specified role level on target entity.
+     */
+    public function isAtLeastOn(AssignableEntity $user, RoleContract $role, RoleableEntity $target): bool;
+
+    /**
      * Ensure that a role exists in the system.
      *
      * @throws DomainException if the role does not exist.

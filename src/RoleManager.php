@@ -390,6 +390,20 @@ final class RoleManager implements RoleManagerContract
     }
 
     /**
+     * Check if user has at least the specified role level on target entity.
+     */
+    public function isAtLeastOn(AssignableEntity $user, RoleContract $role, RoleableEntity $target): bool
+    {
+        $userRole = $this->getRoleOn($user, $target);
+
+        if (! $userRole) {
+            return false;
+        }
+
+        return $userRole->isAtLeast($role);
+    }
+
+    /**
      * Ensure that a role exists in the system.
      *
      * @throws DomainException if the role does not exist.

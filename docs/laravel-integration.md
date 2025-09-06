@@ -2,6 +2,8 @@
 
 Porter integrates seamlessly with Laravel's existing authorization system, working alongside Gates, Policies, and Blade directives.
 
+**The Game Changer**: Porter's `isAtLeastOn()` method eliminates verbose `hasRole('admin') || hasRole('manager')` patterns with a single hierarchy-aware call. Instead of listing every acceptable role, you simply express business logic: "needs at least manager level." This one-liner approach combines assignment checking + hierarchy comparison, delivering both cleaner code and better maintainability.
+
 ## Policy Classes
 
 Porter works perfectly with Laravel's Policy classes for clean, testable authorization logic:
@@ -16,8 +18,7 @@ class ProjectPolicy
 
     public function update(User $user, Project $project)
     {
-        return $user->hasRoleOn($project, 'admin')
-            || $user->hasRoleOn($project, 'manager');
+        return Porter::isAtLeastOn($user, RoleFactory::manager(), $project);
     }
 
     public function delete(User $user, Project $project)
@@ -27,8 +28,7 @@ class ProjectPolicy
 
     public function invite(User $user, Project $project)
     {
-        $role = Porter::getRoleOn($user, $project);
-        return $role && $role->getLevel() >= 5; // Manager level or higher
+        return Porter::isAtLeastOn($user, RoleFactory::manager(), $project);
     }
 }
 ```
@@ -78,9 +78,201 @@ Use Laravel's `@can` directive with Porter-powered policies:
 @endcan
 ```
 
+### Built-in Blade Directives
+
+Porter includes three powerful Blade directives out of the box for seamless template integration:
+
+#### @hasRoleOn - Exact Role Matching
+Check if a user has a specific role on a target entity:
+
+```blade
+@hasRoleOn($user, $project, 'admin')
+    <div class="admin-controls">
+        <button class="btn-danger">Delete Project</button>
+        <button class="btn-warning">Archive Project</button>
+    </div>
+@endhasRoleOn
+
+@hasRoleOn($user, $project, 'editor')
+    <button class="btn-primary">Edit Content</button>
+@endhasRoleOn
+```
+
+#### @hasAnyRoleOn - Any Role Detection
+Check if a user has any role (useful for participation checks):
+
+```blade
+@hasAnyRoleOn($user, $project)
+    <div class="project-member-tools">
+        <a href="{{ route('projects.dashboard', $project) }}">View Dashboard</a>
+        <button onclick="leaveProject()">Leave Project</button>
+    </div>
+@else
+    <button onclick="requestAccess()">Request Access</button>
+@endhasAnyRoleOn
+```
+
+#### @isAtLeastOn - Hierarchy-Based Authorization
+**NEW**: Check if a user has at least the minimum required role level using Porter's role hierarchy:
+
+> **🚨 CRITICAL SECURITY BEHAVIOR**  
+> `@isAtLeastOn` returns `false` if the user has **NO role at all** on the target entity, not just insufficient hierarchy. This is "assignment-first, hierarchy-second" behavior.  
+> - ✅ User with 'editor' role + checking for 'editor' = `true`  
+> - ✅ User with 'admin' role + checking for 'manager' = `true` (hierarchy)  
+> - ❌ User with 'viewer' role + checking for 'editor' = `false` (insufficient level)  
+> - ❌ User with **no role** + checking for any level = `false` (no assignment)
+
+```blade
+@isAtLeastOn($user, RoleFactory::manager(), $project)
+    <div class="management-controls">
+        <button class="btn-success">Approve Budget</button>
+        <button class="btn-info">Assign Tasks</button>
+        <button class="btn-secondary">View Reports</button>
+    </div>
+@endisAtLeastOn
+
+@isAtLeastOn($user, RoleFactory::editor(), $project)
+    <div class="content-controls">
+        <button class="btn-primary">Edit Content</button>
+        <button class="btn-outline">Save Draft</button>
+    </div>
+@endisAtLeastOn
+```
+
+### Why @isAtLeastOn is Game-Changing
+
+Traditional role checking requires you to list every acceptable role:
+
+```blade
+{{-- The old way: verbose and error-prone --}}
+@if($user->hasRoleOn($project, 'admin') || 
+    $user->hasRoleOn($project, 'manager') || 
+    $user->hasRoleOn($project, 'team_lead'))
+    <button>Manage Team</button>
+@endif
+```
+
+With `@isAtLeastOn`, you define the minimum requirement once:
+
+```blade
+{{-- The Porter way: clean and maintainable --}}
+@isAtLeastOn($user, RoleFactory::manager(), $project)
+    <button>Manage Team</button>
+@endisAtLeastOn
+```
+
+**Benefits:**
+- **Single Call Performance**: One method call vs multiple OR conditions reduces query overhead
+- **Hierarchy-Aware**: Automatically includes higher-level roles (Admin ≥ Manager ≥ Editor)
+- **Future-Proof**: Add new high-level roles without updating templates
+- **Business Logic**: Expresses intent clearly - "needs at least manager-level access"
+- **Type Safety**: Uses RoleFactory for compile-time role validation
+- **Maintainable**: Single source of truth for role requirements
+
+### Real-World @isAtLeastOn Examples
+
+#### Progressive Feature Access
+```blade
+{{-- Basic content access for all members --}}
+@hasAnyRoleOn($user, $project)
+    <div class="project-overview">
+        <h2>{{ $project->name }}</h2>
+        <p>{{ $project->description }}</p>
+    </div>
+@endhasAnyRoleOn
+
+{{-- Content editing for editors and above --}}
+@isAtLeastOn($user, RoleFactory::editor(), $project)
+    <div class="content-actions">
+        <button class="edit-btn">Edit Content</button>
+        <button class="preview-btn">Preview Changes</button>
+    </div>
+@endisAtLeastOn
+
+{{-- Management features for managers and above --}}
+@isAtLeastOn($user, RoleFactory::manager(), $project)
+    <div class="management-panel">
+        <h3>Team Management</h3>
+        <button class="invite-btn">Invite Members</button>
+        <button class="role-btn">Manage Roles</button>
+    </div>
+@endisAtLeastOn
+
+{{-- Administrative controls for admins only --}}
+@hasRoleOn($user, $project, 'admin')
+    <div class="admin-panel">
+        <h3>Administration</h3>
+        <button class="danger-btn">Delete Project</button>
+        <button class="archive-btn">Archive Project</button>
+    </div>
+@endhasRoleOn
+```
+
+#### Dynamic Navigation Menus
+```blade
+<nav class="project-nav">
+    <a href="{{ route('projects.show', $project) }}">Overview</a>
+    
+    @isAtLeastOn($user, RoleFactory::editor(), $project)
+        <a href="{{ route('projects.edit', $project) }}">Edit</a>
+        <a href="{{ route('projects.content', $project) }}">Manage Content</a>
+    @endisAtLeastOn
+    
+    @isAtLeastOn($user, RoleFactory::manager(), $project)
+        <a href="{{ route('projects.team', $project) }}">Team</a>
+        <a href="{{ route('projects.reports', $project) }}">Reports</a>
+    @endisAtLeastOn
+    
+    @hasRoleOn($user, $project, 'admin')
+        <a href="{{ route('projects.settings', $project) }}">Settings</a>
+    @endhasRoleOn
+</nav>
+```
+
+#### Budget Approval Workflows
+```blade
+<div class="budget-request">
+    <h3>Budget Request: ${{ number_format($request->amount) }}</h3>
+    
+    @if($request->amount <= 1000)
+        @isAtLeastOn($user, RoleFactory::editor(), $project)
+            <button class="approve-btn">Approve Small Budget</button>
+        @endisAtLeastOn
+    @elseif($request->amount <= 10000)
+        @isAtLeastOn($user, RoleFactory::manager(), $project)
+            <button class="approve-btn">Approve Medium Budget</button>
+        @endisAtLeastOn
+    @else
+        @hasRoleOn($user, $project, 'admin')
+            <button class="approve-btn">Approve Large Budget</button>
+        @endhasRoleOn
+    @endif
+</div>
+```
+
+### Advanced Usage Patterns
+
+#### Using with Custom Role Classes
+```blade
+@isAtLeastOn($user, RoleFactory::teamLead(), $project)
+    <div class="team-lead-tools">
+        <!-- Custom role with specific business logic -->
+    </div>
+@endisAtLeastOn
+```
+
+#### Combining with Laravel Authorization
+```blade
+@can('update', $project)
+    @isAtLeastOn($user, RoleFactory::editor(), $project)
+        <button class="save-btn">Save Changes</button>
+    @endisAtLeastOn
+@endcan
+```
+
 ### Custom Blade Directives
 
-You can also create custom directives for Porter-specific checks:
+You can also create additional custom directives for Porter-specific checks:
 
 ```php
 // In AppServiceProvider.php
@@ -89,8 +281,10 @@ use Hdaklue\Porter\Facades\Porter;
 
 public function boot()
 {
-    Blade::if('hasRoleOn', function ($entity, $role) {
-        return auth()->check() && Porter::hasRoleOn(auth()->user(), $entity, $role);
+    // Custom directive for current user checks
+    Blade::if('canManageProject', function ($project) {
+        return auth()->check() && 
+               Porter::isAtLeastOn(auth()->user(), RoleFactory::manager(), $project);
     });
 }
 ```
@@ -98,11 +292,11 @@ public function boot()
 Usage in Blade:
 
 ```blade
-@hasRoleOn($project, 'admin')
-    <div class="admin-controls">
-        <!-- Admin-only content -->
+@canManageProject($project)
+    <div class="project-management">
+        <!-- Management interface -->
     </div>
-@endhasRoleOn
+@endcanManageProject
 ```
 
 ## Middleware
@@ -183,8 +377,7 @@ class UpdateProjectRequest extends FormRequest
     {
         $project = $this->route('project');
         
-        return $this->user()->hasRoleOn($project, 'admin') 
-            || $this->user()->hasRoleOn($project, 'manager');
+        return Porter::isAtLeastOn($this->user(), RoleFactory::manager(), $project);
     }
 
     public function rules()
@@ -224,8 +417,7 @@ class ProjectResource extends JsonResource
                 Porter::getRoleOn(auth()->user(), $this->resource)
             ),
             'permissions' => $this->when(auth()->check(), [
-                'can_edit' => auth()->user()->hasRoleOn($this->resource, 'admin') 
-                    || auth()->user()->hasRoleOn($this->resource, 'manager'),
+                'can_edit' => Porter::isAtLeastOn(auth()->user(), RoleFactory::manager(), $this->resource),
                 'can_delete' => auth()->user()->hasRoleOn($this->resource, 'admin'),
                 'can_invite' => auth()->user()->hasAnyRoleOn($this->resource),
             ]),

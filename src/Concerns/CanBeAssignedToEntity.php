@@ -48,13 +48,7 @@ trait CanBeAssignedToEntity
 
     public function isAtLeastOn(RoleContract $roleContract, RoleableEntity $roleableEntity)
     {
-        $role = $this->getAssignmentOn($roleableEntity);
-
-        if (empty($role)) {
-            return false;
-        }
-
-        return $role->isAtLeast($roleContract);
+        return Porter::isAtLeastOn($this, $roleContract, $roleableEntity);
     }
 
     /**

@@ -115,5 +115,10 @@ class PorterServiceProvider extends ServiceProvider
         Blade::if('hasAnyRoleOn', function ($user, $entity) {
             return Porter::hasAnyRoleOn($user, $entity);
         });
+
+        // @isAtLeastOn($user, $role, $entity)
+        Blade::if('isAtLeastOn', function ($user, $role, $entity) {
+            return Porter::isAtLeastOn($user, $role, $entity);
+        });
     }
 }
