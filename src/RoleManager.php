@@ -108,7 +108,7 @@ final class RoleManager implements RoleManagerContract
 
     public function check(AssignableEntity $assignableEntity, RoleableEntity $roleableEntity, RoleContract $roleContract): bool
     {
-        return $assignableEntity->hasAssigmentOn($roleableEntity, $roleContract);
+        return $this->performRoleCheck($assignableEntity, $roleableEntity, $roleContract::getDbKey());
     }
 
     /**
