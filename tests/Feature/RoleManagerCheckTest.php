@@ -11,7 +11,6 @@ use Hdaklue\Porter\Tests\Fixtures\TestAdmin;
 use Hdaklue\Porter\Tests\Fixtures\TestEditor;
 use Hdaklue\Porter\Tests\Fixtures\TestProject;
 use Hdaklue\Porter\Tests\Fixtures\TestUser;
-use Hdaklue\Porter\Tests\Fixtures\TestViewer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 
@@ -68,7 +67,7 @@ test('check method returns false when user has different role on entity', functi
 
     // Check for admin role should return false
     expect($this->roleManager->check($user, $project, $adminRole))->toBeFalse();
-    
+
     // Check for assigned editor role should return true
     expect($this->roleManager->check($user, $project, $editorRole))->toBeTrue();
 });
@@ -76,7 +75,7 @@ test('check method returns false when user has different role on entity', functi
 test('check method works with built-in role classes', function () {
     $user = TestUser::create(['name' => 'John Doe', 'email' => 'john@example.com']);
     $project = TestProject::create(['name' => 'Test Project', 'description' => 'A test project']);
-    
+
     $adminRole = new Admin();
     $editorRole = new Editor();
     $managerRole = new Manager();
@@ -98,7 +97,7 @@ test('check method handles multiple users with different roles on same entity', 
     $user1 = TestUser::create(['name' => 'John Doe', 'email' => 'john@example.com']);
     $user2 = TestUser::create(['name' => 'Jane Smith', 'email' => 'jane@example.com']);
     $project = TestProject::create(['name' => 'Test Project', 'description' => 'A test project']);
-    
+
     $adminRole = new TestAdmin();
     $editorRole = new TestEditor();
 
@@ -119,7 +118,7 @@ test('check method handles same user with roles on different entities', function
     $user = TestUser::create(['name' => 'John Doe', 'email' => 'john@example.com']);
     $project1 = TestProject::create(['name' => 'Project 1', 'description' => 'First project']);
     $project2 = TestProject::create(['name' => 'Project 2', 'description' => 'Second project']);
-    
+
     $adminRole = new TestAdmin();
     $editorRole = new TestEditor();
 
@@ -196,7 +195,7 @@ test('check method handles encrypted role keys correctly', function () {
     $roster = Roster::first();
     expect($roster->getRoleDBKey())->toBe($adminRole::getDbKey());
     expect($roster->role_key)->toBeInstanceOf($adminRole::class);
-    
+
     // The check method should work correctly with encrypted keys
     expect($this->roleManager->check($user, $project, $adminRole))->toBeTrue();
 });
@@ -224,7 +223,7 @@ test('check method performance with multiple assignments', function () {
     $users = collect(range(1, 10))->map(function ($i) {
         return TestUser::create(['name' => "User {$i}", 'email' => "user{$i}@example.com"]);
     });
-    
+
     $projects = collect(range(1, 5))->map(function ($i) {
         return TestProject::create(['name' => "Project {$i}"]);
     });
@@ -245,21 +244,21 @@ test('check method performance with multiple assignments', function () {
 
     // Test check method performance and accuracy
     $startTime = microtime(true);
-    
+
     // Perform multiple checks
     foreach ($users->take(3) as $user) {
         foreach ($projects->take(3) as $index => $project) {
             $expectedRole = $index % 2 === 0 ? $adminRole : $editorRole;
             $unexpectedRole = $index % 2 === 0 ? $editorRole : $adminRole;
-            
+
             expect($this->roleManager->check($user, $project, $expectedRole))->toBeTrue();
             expect($this->roleManager->check($user, $project, $unexpectedRole))->toBeFalse();
         }
     }
-    
+
     $endTime = microtime(true);
     $executionTime = $endTime - $startTime;
-    
+
     // Performance should be reasonable (less than 1 second for this test)
     expect($executionTime)->toBeLessThan(1.0);
 });
@@ -267,7 +266,7 @@ test('check method performance with multiple assignments', function () {
 test('check method works with caching enabled', function () {
     // Enable caching for this test
     config(['porter.should_cache' => true]);
-    
+
     $user = TestUser::create(['name' => 'John Doe', 'email' => 'john@example.com']);
     $project = TestProject::create(['name' => 'Test Project']);
     $adminRole = new TestAdmin();
@@ -285,7 +284,7 @@ test('check method works with caching enabled', function () {
 test('check method works with caching disabled', function () {
     // Disable caching for this test
     config(['porter.should_cache' => false]);
-    
+
     $user = TestUser::create(['name' => 'John Doe', 'email' => 'john@example.com']);
     $project = TestProject::create(['name' => 'Test Project']);
     $adminRole = new TestAdmin();
@@ -326,7 +325,7 @@ test('check method consistency with hasRoleOn method', function () {
 test('check method handles edge case with same role instance', function () {
     $user = TestUser::create(['name' => 'John Doe', 'email' => 'john@example.com']);
     $project = TestProject::create(['name' => 'Test Project']);
-    
+
     // Create two instances of the same role class
     $adminRole1 = new TestAdmin();
     $adminRole2 = new TestAdmin();
@@ -337,7 +336,7 @@ test('check method handles edge case with same role instance', function () {
     // Check with both instances should return true (same role class)
     expect($this->roleManager->check($user, $project, $adminRole1))->toBeTrue();
     expect($this->roleManager->check($user, $project, $adminRole2))->toBeTrue();
-    
+
     // Both instances should have same encrypted key
     expect($adminRole1::getDbKey())->toBe($adminRole2::getDbKey());
 });

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Facade;
 /**
  * @method static void assign(\Hdaklue\Porter\Contracts\AssignableEntity $user, \Hdaklue\Porter\Contracts\RoleableEntity $target, string|\Hdaklue\Porter\Contracts\RoleContract $role)
  * @method static void remove(\Hdaklue\Porter\Contracts\AssignableEntity $user, \Hdaklue\Porter\Contracts\RoleableEntity $target)
+ * @method static bool check(\Hdaklue\Porter\Contracts\AssignableEntity $assignableEntity, \Hdaklue\Porter\Contracts\RoleableEntity $roleableEntity, \Hdaklue\Porter\Contracts\RoleContract $roleContract)
  * @method static \Illuminate\Support\Collection getAssignedEntitiesByType(\Hdaklue\Porter\Contracts\AssignableEntity $entity, string $type)
  * @method static bool hasRoleOn(\Hdaklue\Porter\Contracts\AssignableEntity $user, \Hdaklue\Porter\Contracts\RoleableEntity $target, string|\Hdaklue\Porter\Contracts\RoleContract $role)
  * @method static bool hasAnyRoleOn(\Hdaklue\Porter\Contracts\AssignableEntity $user, \Hdaklue\Porter\Contracts\RoleableEntity $target)

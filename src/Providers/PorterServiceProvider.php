@@ -9,6 +9,7 @@ use Hdaklue\Porter\Console\Commands\DoctorCommand;
 use Hdaklue\Porter\Console\Commands\InstallCommand;
 use Hdaklue\Porter\Console\Commands\ListCommand;
 use Hdaklue\Porter\Contracts\RoleManagerContract;
+use Hdaklue\Porter\Facades\Porter;
 use Hdaklue\Porter\Middleware\RequireRole;
 use Hdaklue\Porter\Middleware\RequireRoleOn;
 use Hdaklue\Porter\RoleManager;
@@ -101,18 +102,18 @@ class PorterServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register Blade directives that correspond to trait methods.
+     * Register Blade directives using Porter facade.
      */
     private function registerBladeDirectives(): void
     {
-        // @hasAssignmentOn($user, $target, $role)
-        Blade::if('hasAssignmentOn', function ($user, $target, $role) {
-            return $user->hasAssignmentOn($target, $role);
+        // @hasRoleOn($user, $target, $role)
+        Blade::if('hasRoleOn', function ($user, $target, $role) {
+            return Porter::hasRoleOn($user, $target, $role);
         });
 
-        // @isAssignedTo($user, $entity)
-        Blade::if('isAssignedTo', function ($user, $entity) {
-            return $user->isAssignedTo($entity);
+        // @hasAnyRoleOn($user, $entity)
+        Blade::if('hasAnyRoleOn', function ($user, $entity) {
+            return Porter::hasAnyRoleOn($user, $entity);
         });
     }
 }

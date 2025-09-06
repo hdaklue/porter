@@ -24,7 +24,19 @@ interface AssignableEntity
     /**
      * hasAssignmentOn.
      */
-    public function hasAssignmentOn(RoleableEntity $target, RoleContract $role);
+    public function hasAssignmentOn(RoleableEntity $target, RoleContract $role): bool;
+
+    /**
+     * isAssignedTo.
+     */
+    public function isAssignedTo(RoleableEntity $entity): bool;
+
+    public function isAtLeastOn(RoleContract $roleContract, RoleableEntity $roleableEntity);
+
+    /**
+     * getAssignmentOn.
+     */
+    public function getAssignmentOn(RoleableEntity $entity): ?RoleContract;
 
     /**
      * Unique identifier of the actor (model_id).

@@ -889,6 +889,17 @@ public function update(User $user, Project $project)
     return $user->hasRoleOn($project, 'admin');
 }
 
+// ⭐ POWERFUL: Hierarchy-based permission checking
+public function manageTeam(User $user, Project $project)
+{
+    // Check if user has at least Manager level role on the project
+    return $user->isAtLeastOn(new Manager(), $project);
+}
+
+// This works for complex hierarchies - if user is Admin (level 10)
+// and you check isAtLeastOn(new Editor(), $project) -> true!
+// Perfect for policies that need "at least this level" logic
+
 // In your Controller
 $this->authorize('update', $project);
 
@@ -1337,7 +1348,7 @@ Porter automatically handles complex level adjustments:
 
 ## Testing
 
-Porter features comprehensive testing with **74 tests** and **321 assertions** covering real-world scenarios and edge cases, with continuous integration across multiple PHP and Laravel versions.
+Porter features comprehensive testing with **117 tests** and **436 assertions** covering real-world scenarios and edge cases, with continuous integration across multiple PHP and Laravel versions.
 
 ```bash
 # Run complete test suite
@@ -1350,18 +1361,26 @@ vendor/bin/pest tests/
 vendor/bin/pest --coverage
 
 # Test specific components
-vendor/bin/pest tests/Feature/RoleValidatorTest.php    # Performance & caching
-vendor/bin/pest tests/Feature/RoleManagerDatabaseTest.php  # Database operations
-vendor/bin/pest tests/Feature/CreateRoleCommandTest.php    # Interactive commands
+vendor/bin/pest tests/Feature/RoleValidatorTest.php      # Validation & hierarchy (23 tests)
+vendor/bin/pest tests/Feature/RoleManagerCheckTest.php   # Role checking logic (17 tests)
+vendor/bin/pest tests/Feature/RequireRoleOnMiddlewareTest.php  # Entity middleware (14 tests)
+vendor/bin/pest tests/Feature/RosterModelTest.php        # Database model (12 tests)
+vendor/bin/pest tests/Feature/RequireRoleMiddlewareTest.php    # Role middleware (12 tests)
+vendor/bin/pest tests/Feature/CreateRoleCommandTest.php  # Interactive commands (8 tests)
 ```
 
 ### Test Coverage
 - **RoleValidator** (23 tests) - Caching, validation, and hierarchy calculations
-- **Commands** (8 tests) - Interactive role creation and installation  
-- **Database** (7 tests) - Role assignments and model relationships
-- **Cross-Database** (12 tests) - Multi-connection scenarios and scope optimizations
-- **Unit Tests** (8 tests) - Core role logic and factory methods
-- **Integration** (16 tests) - Laravel compatibility and feature integration
+- **RoleManagerCheckTest** (17 tests) - Role checking logic, caching, and performance  
+- **RequireRoleOnMiddleware** (14 tests) - Entity-specific role middleware
+- **RosterModel** (12 tests) - Database model, scopes, and relationships
+- **RequireRoleMiddleware** (12 tests) - General role middleware functionality
+- **CreateRoleCommand** (8 tests) - Interactive role creation and installation
+- **RoleManagerDatabase** (7 tests) - Role assignments and database operations
+- **InstallCommand** (6 tests) - Package installation and setup
+- **RoleContractUsage** (2 tests) - Type safety and union type handling
+- **RoleFactory** (4 tests) - Dynamic role creation and validation
+- **Unit Tests** (12 tests) - Core role logic, hierarchy, and factory methods
 
 ### Testing Cross-Database Scenarios
 ```php

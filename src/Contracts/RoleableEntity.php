@@ -17,6 +17,10 @@ interface RoleableEntity extends Arrayable
      */
     public function roleAssignments(): MorphMany;
 
+    public function assign(AssignableEntity $entity, RoleContract $role): void;
+
+    public function remove(AssignableEntity $entity): void;
+
     /**
      * Get the morph class (used in roleable_type).
      */
