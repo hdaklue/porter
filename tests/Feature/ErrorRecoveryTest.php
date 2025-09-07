@@ -11,29 +11,36 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 
+// Helper function to create test fixtures - compatible across all Pest versions
+function createErrorFixtures()
+{
+    $user = tap(new TestUser(), fn ($u) => $u->id = 1);
+    $project = tap(new TestProject(), fn ($p) => $p->id = 1);
+
+    return compact('user', 'project');
+}
+
 describe('Error Recovery Tests', function () {
-    beforeEach(function () {
-        $this->user = tap(new TestUser(), fn ($u) => $u->id = 1);
-        $this->project = tap(new TestProject(), fn ($p) => $p->id = 1);
-    });
 
     describe('Database Failure Scenarios', function () {
         it('handles database connection failures gracefully', function () {
+            extract(createErrorFixtures());
             // First establish a working connection
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
 
             // Test with a role that doesn't exist - this should fail gracefully
-            expect(function () {
-                app(RoleManager::class)->assign($this->user, $this->project, 'NonexistentRole');
+            expect(function () use ($user, $project) {
+                app(RoleManager::class)->assign($user, $project, 'NonexistentRole');
             })->toThrow(\Exception::class);
 
             // Verify the system is still working for valid operations
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestEditor');
-            expect($this->user->hasRoleOn($this->project, 'TestEditor'))->toBeTrue();
+            app(RoleManager::class)->assign($user, $project, 'TestEditor');
+            expect($user->hasRoleOn($project, 'TestEditor'))->toBeTrue();
         });
 
         it('recovers from database lock conflicts', function () {
+            extract(createErrorFixtures());
             // Create a scenario that might cause locks
             $users = collect(range(1, 5))->map(fn ($i) => tap(new TestUser(), fn ($u) => $u->id = $i));
 
@@ -43,11 +50,11 @@ describe('Error Recovery Tests', function () {
 
             foreach ($users as $user) {
                 try {
-                    app(RoleManager::class)->assign($user, $this->project, 'TestAdmin');
+                    app(RoleManager::class)->assign($user, $project, 'TestAdmin');
                     $assignments++;
 
                     // Try duplicate assignment
-                    app(RoleManager::class)->assign($user, $this->project, 'TestAdmin');
+                    app(RoleManager::class)->assign($user, $project, 'TestAdmin');
                     $assignments++;
                 } catch (\Exception $e) {
                     $exceptions[] = $e;
@@ -59,13 +66,14 @@ describe('Error Recovery Tests', function () {
 
             // Verify system still works regardless
             $newUser = tap(new TestUser(), fn ($u) => $u->id = 999);
-            app(RoleManager::class)->assign($newUser, $this->project, 'TestEditor');
-            expect($newUser->hasRoleOn($this->project, 'TestEditor'))->toBeTrue();
+            app(RoleManager::class)->assign($newUser, $project, 'TestEditor');
+            expect($newUser->hasRoleOn($project, 'TestEditor'))->toBeTrue();
         });
 
         it('handles corrupt database records gracefully', function () {
+            extract(createErrorFixtures());
             // Insert some valid data
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
 
             // Manually corrupt data in database
             DB::table('roster')->where('assignable_id', 1)->update([
@@ -74,45 +82,47 @@ describe('Error Recovery Tests', function () {
             ]);
 
             // System should handle corrupted data gracefully
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeFalse();
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeFalse();
 
             // Should still be able to assign new roles
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestEditor');
-            expect($this->user->hasRoleOn($this->project, 'TestEditor'))->toBeTrue();
+            app(RoleManager::class)->assign($user, $project, 'TestEditor');
+            expect($user->hasRoleOn($project, 'TestEditor'))->toBeTrue();
         });
 
         it('handles missing database tables gracefully', function () {
+            extract(createErrorFixtures());
             // First verify normal operation works
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
 
             // Drop the table
             DB::statement('DROP TABLE IF EXISTS roster');
 
             // Operations should fail gracefully
-            expect(function () {
-                app(RoleManager::class)->assign($this->user, $this->project, 'TestEditor');
+            expect(function () use ($user, $project) {
+                app(RoleManager::class)->assign($user, $project, 'TestEditor');
             })->toThrow(\Exception::class);
 
             // Role check should return false (graceful degradation)
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeFalse();
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeFalse();
 
             // Recreate table for cleanup
             $this->setUp();
         });
 
         it('handles database constraint violations properly', function () {
+            extract(createErrorFixtures());
             // Create a valid assignment
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
 
             // Try to create duplicate assignment through the system (should be handled gracefully)
             try {
-                app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
+                app(RoleManager::class)->assign($user, $project, 'TestAdmin');
 
                 // If it allows duplicates, verify only one record exists or it's handled properly
                 $count = DB::table('roster')
-                    ->where('assignable_id', $this->user->id)
-                    ->where('roleable_id', $this->project->id)
+                    ->where('assignable_id', $user->id)
+                    ->where('roleable_id', $project->id)
                     ->where('role_key', 'TestAdmin')
                     ->count();
 
@@ -123,10 +133,11 @@ describe('Error Recovery Tests', function () {
             }
 
             // System should still function normally
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
         });
 
         it('handles transaction rollback scenarios', function () {
+            extract(createErrorFixtures());
             $originalCount = DB::table('roster')->count();
 
             // Attempt a batch operation that should fail partway through
@@ -134,7 +145,7 @@ describe('Error Recovery Tests', function () {
 
             try {
                 // This should succeed
-                app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
+                app(RoleManager::class)->assign($user, $project, 'TestAdmin');
 
                 // Force an error
                 throw new \Exception('Simulated error during batch operation');
@@ -145,47 +156,50 @@ describe('Error Recovery Tests', function () {
 
             // Table should be back to original state
             expect(DB::table('roster')->count())->toBe($originalCount);
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeFalse();
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeFalse();
         });
     });
 
     describe('Cache Backend Failures', function () {
         it('functions without cache when cache backend fails', function () {
+            extract(createErrorFixtures());
             // Enable caching
             Config::set('porter.cache.enabled', true);
             Config::set('porter.should_cache', true);
 
             // First operation should work and populate cache
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
 
             // Test that system works when cache is disabled
             Config::set('porter.cache.enabled', false);
 
             // Operations should still work without cache
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestEditor');
-            expect($this->user->hasRoleOn($this->project, 'TestEditor'))->toBeTrue();
+            app(RoleManager::class)->assign($user, $project, 'TestEditor');
+            expect($user->hasRoleOn($project, 'TestEditor'))->toBeTrue();
 
             // Restore cache configuration
             Config::set('cache.default', 'array');
         });
 
         it('handles cache corruption gracefully', function () {
+            extract(createErrorFixtures());
             Config::set('porter.cache.enabled', true);
             Config::set('porter.should_cache', true);
 
             // Populate cache
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-            $this->user->hasRoleOn($this->project, 'TestAdmin');
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+            $user->hasRoleOn($project, 'TestAdmin');
 
             // Corrupt cache data
             Cache::put('porter.role_cache_key_example', 'corrupted_data');
 
             // Should fall back to database and work correctly
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
         });
 
         it('recovers when cache is full', function () {
+            extract(createErrorFixtures());
             Config::set('porter.cache.enabled', true);
             Config::set('porter.should_cache', true);
 
@@ -195,34 +209,36 @@ describe('Error Recovery Tests', function () {
             }
 
             // Operations should still work even if cache is full
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
         });
 
         it('handles cache timeout gracefully', function () {
+            extract(createErrorFixtures());
             Config::set('porter.cache.enabled', true);
             Config::set('porter.should_cache', true);
 
             // Create assignment and cache it
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-            $this->user->hasRoleOn($this->project, 'TestAdmin');
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+            $user->hasRoleOn($project, 'TestAdmin');
 
             // Clear all cache to simulate timeout
             Cache::flush();
 
             // Should still work by falling back to database
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
         });
     });
 
     describe('Malformed Data Handling', function () {
         it('handles null values in critical fields', function () {
+            extract(createErrorFixtures());
             // Try to insert null values directly into database
-            expect(function () {
+            expect(function () use ($project) {
                 DB::table('roster')->insert([
                     'assignable_type' => null,
                     'assignable_id' => '1',
-                    'roleable_type' => get_class($this->project),
+                    'roleable_type' => get_class($project),
                     'roleable_id' => '1',
                     'role_key' => 'TestAdmin',
                     'created_at' => now(),
@@ -231,18 +247,19 @@ describe('Error Recovery Tests', function () {
             })->toThrow(\Exception::class);
 
             // System should still be functional
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
         });
 
         it('handles extremely long data values', function () {
+            extract(createErrorFixtures());
             $longString = str_repeat('a', 10000);
 
             try {
                 DB::table('roster')->insert([
                     'assignable_type' => $longString,
                     'assignable_id' => '1',
-                    'roleable_type' => get_class($this->project),
+                    'roleable_type' => get_class($project),
                     'roleable_id' => '1',
                     'role_key' => 'TestAdmin',
                     'created_at' => now(),
@@ -268,15 +285,16 @@ describe('Error Recovery Tests', function () {
         });
 
         it('handles special characters in role assignments', function () {
+            extract(createErrorFixtures());
             $specialChars = ['<script>', '&amp;', '"quotes"', "'single'", "\n\r\t"];
 
             foreach ($specialChars as $char) {
                 // Most should be rejected or handled safely
                 try {
-                    app(RoleManager::class)->assign($this->user, $this->project, "role{$char}");
+                    app(RoleManager::class)->assign($user, $project, "role{$char}");
 
                     // If it succeeds, verify it doesn't break anything
-                    $result = $this->user->hasRoleOn($this->project, "role{$char}");
+                    $result = $user->hasRoleOn($project, "role{$char}");
                     expect($result)->toBeIn([true, false]); // Should return boolean
                 } catch (\Exception $e) {
                     // Expected for invalid characters
@@ -286,13 +304,14 @@ describe('Error Recovery Tests', function () {
         });
 
         it('handles binary data in text fields', function () {
+            extract(createErrorFixtures());
             $binaryData = "\x00\x01\x02\x03\xFF";
 
             try {
                 DB::table('roster')->insert([
-                    'assignable_type' => get_class($this->user),
+                    'assignable_type' => get_class($user),
                     'assignable_id' => '1',
-                    'roleable_type' => get_class($this->project),
+                    'roleable_type' => get_class($project),
                     'roleable_id' => '1',
                     'role_key' => $binaryData,
                     'created_at' => now(),
@@ -311,6 +330,7 @@ describe('Error Recovery Tests', function () {
         });
 
         it('handles empty or whitespace-only values', function () {
+            extract(createErrorFixtures());
             $emptyValues = ['', ' ', "\t", "\n", "\r\n"];
 
             foreach ($emptyValues as $empty) {
@@ -318,7 +338,7 @@ describe('Error Recovery Tests', function () {
                     DB::table('roster')->insert([
                         'assignable_type' => $empty,
                         'assignable_id' => '1',
-                        'roleable_type' => get_class($this->project),
+                        'roleable_type' => get_class($project),
                         'roleable_id' => '1',
                         'role_key' => 'TestAdmin',
                         'created_at' => now(),
@@ -340,6 +360,7 @@ describe('Error Recovery Tests', function () {
 
     describe('Network and I/O Failures', function () {
         it('handles temporary file system issues', function () {
+            extract(createErrorFixtures());
             // This would be more relevant if the system uses file-based storage
             // For now, test basic I/O resilience
 
@@ -350,19 +371,20 @@ describe('Error Recovery Tests', function () {
             unlink($tmpFile);
 
             // System should continue working normally
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
         });
 
         it('handles disk space issues gracefully', function () {
+            extract(createErrorFixtures());
             // Simulate by trying to write large amounts of data
             $largeDataSet = [];
 
             for ($i = 0; $i < 1000; $i++) {
                 $largeDataSet[] = [
-                    'assignable_type' => get_class($this->user),
+                    'assignable_type' => get_class($user),
                     'assignable_id' => (string) $i,
-                    'roleable_type' => get_class($this->project),
+                    'roleable_type' => get_class($project),
                     'roleable_id' => '1',
                     'role_key' => 'TestAdmin',
                     'created_at' => now(),
@@ -379,14 +401,15 @@ describe('Error Recovery Tests', function () {
                 expect($e)->toBeInstanceOf(\Exception::class);
 
                 // Verify basic operations still work
-                app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-                expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+                app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+                expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
             }
         });
     });
 
     describe('System Resource Exhaustion', function () {
         it('handles memory exhaustion gracefully', function () {
+            extract(createErrorFixtures());
             // Create a scenario that uses significant memory
             $largeArray = [];
 
@@ -395,7 +418,7 @@ describe('Error Recovery Tests', function () {
                 for ($i = 0; $i < 1000; $i++) {
                     $largeArray[] = app(RoleManager::class)->assign(
                         tap(new TestUser(), fn ($u) => $u->id = $i),
-                        $this->project,
+                        $project,
                         'TestAdmin'
                     );
                 }
@@ -410,15 +433,16 @@ describe('Error Recovery Tests', function () {
         });
 
         it('handles timeout scenarios', function () {
+            extract(createErrorFixtures());
             // Simulate long-running operations
             $startTime = time();
 
             // Perform many operations
             for ($i = 0; $i < 100; $i++) {
                 $user = tap(new TestUser(), fn ($u) => $u->id = $i);
-                app(RoleManager::class)->assign($user, $this->project, 'TestAdmin');
-                $user->hasRoleOn($this->project, 'TestAdmin');
-                app(RoleManager::class)->remove($user, $this->project);
+                app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+                $user->hasRoleOn($project, 'TestAdmin');
+                app(RoleManager::class)->remove($user, $project);
 
                 // Break if taking too long (simulate timeout)
                 if (time() - $startTime > 5) {
@@ -428,15 +452,16 @@ describe('Error Recovery Tests', function () {
 
             // System should still be responsive
             $finalUser = tap(new TestUser(), fn ($u) => $u->id = 9999);
-            app(RoleManager::class)->assign($finalUser, $this->project, 'TestAdmin');
-            expect($finalUser->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            app(RoleManager::class)->assign($finalUser, $project, 'TestAdmin');
+            expect($finalUser->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
         });
     });
 
     describe('Recovery and Cleanup', function () {
         it('automatically cleans up inconsistent states', function () {
+            extract(createErrorFixtures());
             // Create some valid data
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
 
             // Manually create inconsistent state
             DB::table('roster')->insert([
@@ -450,14 +475,15 @@ describe('Error Recovery Tests', function () {
             ]);
 
             // System should handle the inconsistent data gracefully
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeTrue();
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
 
             // Cleanup operations should work
-            app(RoleManager::class)->remove($this->user, $this->project);
-            expect($this->user->hasRoleOn($this->project, 'TestAdmin'))->toBeFalse();
+            app(RoleManager::class)->remove($user, $project);
+            expect($user->hasRoleOn($project, 'TestAdmin'))->toBeFalse();
         });
 
         it('maintains data integrity after errors', function () {
+            extract(createErrorFixtures());
             $initialCount = DB::table('roster')->count();
 
             // Perform operations that might fail
@@ -466,7 +492,7 @@ describe('Error Recovery Tests', function () {
             for ($i = 0; $i < 10; $i++) {
                 try {
                     $user = tap(new TestUser(), fn ($u) => $u->id = $i);
-                    app(RoleManager::class)->assign($user, $this->project, 'TestAdmin');
+                    app(RoleManager::class)->assign($user, $project, 'TestAdmin');
 
                     // Simulate random failures
                     if ($i % 3 === 0) {

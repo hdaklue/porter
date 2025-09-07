@@ -10,25 +10,31 @@ use Hdaklue\Porter\Tests\Fixtures\TestProject;
 use Hdaklue\Porter\Tests\Fixtures\TestUser;
 use Illuminate\Support\Facades\DB;
 
+// Helper function to create test fixtures - compatible across all Pest versions
+function createSecurityFixtures()
+{
+    $user = new TestUser();
+    $user->id = 1;
+    $user->name = 'Test User';
+
+    $project = new TestProject();
+    $project->id = 1;
+    $project->name = 'Test Project';
+
+    $role = new TestAdmin();
+
+    return compact('user', 'project', 'role');
+}
+
 describe('Security Hardening Tests', function () {
-    beforeEach(function () {
-        $this->user = new TestUser();
-        $this->user->id = 1;
-        $this->user->name = 'Test User';
-
-        $this->project = new TestProject();
-        $this->project->id = 1;
-        $this->project->name = 'Test Project';
-
-        $this->role = new TestAdmin();
-    });
 
     describe('SQL Injection Prevention', function () {
         it('prevents SQL injection in role keys', function () {
+            extract(createSecurityFixtures());
             $maliciousRoleKey = "'; DROP TABLE roster; --";
 
-            expect(function () use ($maliciousRoleKey) {
-                app(RoleManager::class)->assign($this->user, $this->project, $maliciousRoleKey);
+            expect(function () use ($maliciousRoleKey, $user, $project) {
+                app(RoleManager::class)->assign($user, $project, $maliciousRoleKey);
             })->toThrow(\Exception::class);
 
             // Verify table still exists
@@ -37,25 +43,27 @@ describe('Security Hardening Tests', function () {
         });
 
         it('prevents SQL injection in assignable type', function () {
+            extract(createSecurityFixtures());
             // This test would require mocking, so let's simplify it
             // Test with potentially dangerous input data
             $maliciousData = ["'; DROP TABLE roster; --", 'UNION SELECT', '<script>'];
 
             foreach ($maliciousData as $data) {
-                expect(function () use ($data) {
-                    app(RoleManager::class)->assign($this->user, $this->project, $data);
+                expect(function () use ($data, $user, $project) {
+                    app(RoleManager::class)->assign($user, $project, $data);
                 })->toThrow(\Exception::class);
             }
         });
 
         it('sanitizes special characters in role identifiers', function () {
+            extract(createSecurityFixtures());
             $specialChars = ["'", '"', ';', '--', '/*', '*/', 'UNION', 'SELECT'];
 
             foreach ($specialChars as $char) {
                 $roleKey = "admin{$char}test";
 
-                expect(function () use ($roleKey) {
-                    app(RoleManager::class)->assign($this->user, $this->project, $roleKey);
+                expect(function () use ($roleKey, $user, $project) {
+                    app(RoleManager::class)->assign($user, $project, $roleKey);
                 })->toThrow(\Exception::class);
             }
         });
@@ -63,16 +71,17 @@ describe('Security Hardening Tests', function () {
 
     describe('Timing Attack Prevention', function () {
         it('has consistent timing for role checks regardless of existence', function () {
+            extract(createSecurityFixtures());
             // Assign a valid role
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
 
             // Basic timing test - just verify both operations complete
             $start = microtime(true);
-            $validResult = $this->user->hasRoleOn($this->project, 'TestAdmin');
+            $validResult = $user->hasRoleOn($project, 'TestAdmin');
             $validTime = microtime(true) - $start;
 
             $start = microtime(true);
-            $invalidResult = $this->user->hasRoleOn($this->project, 'NonExistent');
+            $invalidResult = $user->hasRoleOn($project, 'NonExistent');
             $invalidTime = microtime(true) - $start;
 
             // Both should return boolean results
@@ -85,11 +94,12 @@ describe('Security Hardening Tests', function () {
         });
 
         it('prevents information leakage through error timing', function () {
+            extract(createSecurityFixtures());
             // Test that error scenarios complete without hanging or crashing
             $invalidScenarios = [
-                fn () => $this->user->hasRoleOn($this->project, null),
-                fn () => $this->user->hasRoleOn($this->project, 'NonExistent'),
-                fn () => $this->user->hasRoleOn($this->project, ''),
+                fn () => $user->hasRoleOn($project, null),
+                fn () => $user->hasRoleOn($project, 'NonExistent'),
+                fn () => $user->hasRoleOn($project, ''),
             ];
 
             foreach ($invalidScenarios as $scenario) {
@@ -113,22 +123,25 @@ describe('Security Hardening Tests', function () {
 
     describe('Input Sanitization Edge Cases', function () {
         it('handles extremely long role keys', function () {
+            extract(createSecurityFixtures());
             $longRoleKey = str_repeat('a', 10000);
 
-            expect(function () use ($longRoleKey) {
-                app(RoleManager::class)->assign($this->user, $this->project, $longRoleKey);
+            expect(function () use ($longRoleKey, $user, $project) {
+                app(RoleManager::class)->assign($user, $project, $longRoleKey);
             })->toThrow(\Exception::class);
         });
 
         it('handles null bytes in role keys', function () {
+            extract(createSecurityFixtures());
             $nullByteRoleKey = "admin\0test";
 
-            expect(function () use ($nullByteRoleKey) {
-                app(RoleManager::class)->assign($this->user, $this->project, $nullByteRoleKey);
+            expect(function () use ($nullByteRoleKey, $user, $project) {
+                app(RoleManager::class)->assign($user, $project, $nullByteRoleKey);
             })->toThrow(\Exception::class);
         });
 
         it('handles unicode and special encoding attacks', function () {
+            extract(createSecurityFixtures());
             $unicodeAttacks = [
                 "admin\u{202e}nda", // Right-to-left override
                 "admin\u{200d}test", // Zero-width joiner
@@ -138,24 +151,26 @@ describe('Security Hardening Tests', function () {
             ];
 
             foreach ($unicodeAttacks as $attack) {
-                expect(function () use ($attack) {
-                    app(RoleManager::class)->assign($this->user, $this->project, $attack);
+                expect(function () use ($attack, $user, $project) {
+                    app(RoleManager::class)->assign($user, $project, $attack);
                 })->toThrow(\Exception::class);
             }
         });
 
         it('handles control characters in role keys', function () {
+            extract(createSecurityFixtures());
             for ($i = 0; $i < 32; $i++) {
                 $controlChar = chr($i);
                 $roleKeyWithControl = "admin{$controlChar}test";
 
-                expect(function () use ($roleKeyWithControl) {
-                    app(RoleManager::class)->assign($this->user, $this->project, $roleKeyWithControl);
+                expect(function () use ($roleKeyWithControl, $user, $project) {
+                    app(RoleManager::class)->assign($user, $project, $roleKeyWithControl);
                 })->toThrow(\Exception::class);
             }
         });
 
         it('prevents directory traversal in role keys', function () {
+            extract(createSecurityFixtures());
             $traversalAttacks = [
                 '../admin',
                 '..\\admin',
@@ -165,13 +180,14 @@ describe('Security Hardening Tests', function () {
             ];
 
             foreach ($traversalAttacks as $attack) {
-                expect(function () use ($attack) {
-                    app(RoleManager::class)->assign($this->user, $this->project, $attack);
+                expect(function () use ($attack, $user, $project) {
+                    app(RoleManager::class)->assign($user, $project, $attack);
                 })->toThrow(\Exception::class);
             }
         });
 
         it('validates role key format strictly', function () {
+            extract(createSecurityFixtures());
             $invalidFormats = [
                 '', // Empty string
                 ' ', // Whitespace only
@@ -184,8 +200,8 @@ describe('Security Hardening Tests', function () {
             ];
 
             foreach ($invalidFormats as $invalid) {
-                expect(function () use ($invalid) {
-                    app(RoleManager::class)->assign($this->user, $this->project, $invalid);
+                expect(function () use ($invalid, $user, $project) {
+                    app(RoleManager::class)->assign($user, $project, $invalid);
                 })->toThrow(\Exception::class);
             }
         });
@@ -193,29 +209,30 @@ describe('Security Hardening Tests', function () {
 
     describe('Encryption Security', function () {
         it('produces different encrypted values for same role on subsequent calls', function () {
+            extract(createSecurityFixtures());
             config(['porter.security.key_storage' => 'encrypted']);
 
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
             $firstRecord = DB::table('roster')->where([
                 'assignable_id' => 1,
-                'assignable_type' => get_class($this->user),
+                'assignable_type' => get_class($user),
                 'roleable_id' => 1,
-                'roleable_type' => get_class($this->project),
+                'roleable_type' => get_class($project),
             ])->first();
 
             // Remove and reassign
-            app(RoleManager::class)->remove($this->user, $this->project);
+            app(RoleManager::class)->remove($user, $project);
 
             // Clear any potential cache
             sleep(1); // Ensure different timestamp
 
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
 
             $secondRecord = DB::table('roster')->where([
                 'assignable_id' => 1,
-                'assignable_type' => get_class($this->user),
+                'assignable_type' => get_class($user),
                 'roleable_id' => 1,
-                'roleable_type' => get_class($this->project),
+                'roleable_type' => get_class($project),
             ])->first();
 
             // Either they should be different (if using random encryption) OR the test should pass if they're the same (consistent encryption)
@@ -229,18 +246,19 @@ describe('Security Hardening Tests', function () {
         });
 
         it('prevents role key enumeration through encrypted values', function () {
+            extract(createSecurityFixtures());
             config(['porter.security.key_storage' => 'encrypted']);
 
             // Assign same role to different entities
             $project2 = new TestProject();
             $project2->id = 2;
 
-            app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-            app(RoleManager::class)->assign($this->user, $project2, 'TestAdmin');
+            app(RoleManager::class)->assign($user, $project, 'TestAdmin');
+            app(RoleManager::class)->assign($user, $project2, 'TestAdmin');
 
             $records = DB::table('roster')->where([
                 'assignable_id' => 1,
-                'assignable_type' => get_class($this->user),
+                'assignable_type' => get_class($user),
             ])->get();
 
             // Should have created 2 records
@@ -256,11 +274,12 @@ describe('Security Hardening Tests', function () {
 
     describe('Memory Security', function () {
         it('does not leak sensitive data in error messages', function () {
+            extract(createSecurityFixtures());
             // Test that system handles sensitive data appropriately
             $sensitiveRoleKey = 'super_secret_admin_key_12345';
 
             try {
-                app(RoleManager::class)->assign($this->user, $this->project, $sensitiveRoleKey);
+                app(RoleManager::class)->assign($user, $project, $sensitiveRoleKey);
 
                 // If assignment succeeds, verify the system still works
                 expect(true)->toBe(true);
@@ -275,16 +294,17 @@ describe('Security Hardening Tests', function () {
         });
 
         it('clears sensitive data from memory after operations', function () {
+            extract(createSecurityFixtures());
             $roleKey = 'TestAdmin';
 
-            app(RoleManager::class)->assign($this->user, $this->project, $roleKey);
+            app(RoleManager::class)->assign($user, $project, $roleKey);
 
             // Force garbage collection
             gc_collect_cycles();
 
             // This is a conceptual test - in practice, we'd need specialized tools
             // to verify memory clearing, but we can at least ensure operations complete
-            expect($this->user->hasRoleOn($this->project, $roleKey))->toBeTrue();
+            expect($user->hasRoleOn($project, $roleKey))->toBeTrue();
         });
     });
 });

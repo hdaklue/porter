@@ -9,17 +9,23 @@ use Hdaklue\Porter\Tests\Fixtures\TestProject;
 use Hdaklue\Porter\Tests\Fixtures\TestUser;
 use Illuminate\Support\Facades\DB;
 
+// Helper function to create test fixtures - compatible across all Pest versions
+function createAdvancedFixtures()
+{
+    $users = collect(range(1, 20))->map(fn ($i) => tap(new TestUser(), fn ($u) => $u->id = $i));
+    $projects = collect(range(1, 10))->map(fn ($i) => tap(new TestProject(), fn ($p) => $p->id = $i));
+
+    return compact('users', 'projects');
+}
+
 describe('Advanced Scenarios Tests', function () {
-    beforeEach(function () {
-        $this->users = collect(range(1, 20))->map(fn ($i) => tap(new TestUser(), fn ($u) => $u->id = $i));
-        $this->projects = collect(range(1, 10))->map(fn ($i) => tap(new TestProject(), fn ($p) => $p->id = $i));
-    });
 
     describe('Complex Role Hierarchies', function () {
         it('handles deep role hierarchies with multiple levels', function () {
+            extract(createAdvancedFixtures());
             // Note: RoleManager uses 'replace' strategy by default, so only the last assigned role persists
-            $user = $this->users->first();
-            $project = $this->projects->first();
+            $user = $users->first();
+            $project = $projects->first();
 
             // Test role assignment and replacement behavior
             app(RoleManager::class)->assign($user, $project, 'TestViewer');
@@ -40,12 +46,13 @@ describe('Advanced Scenarios Tests', function () {
         });
 
         it('manages complex inheritance patterns', function () {
-            $admin = $this->users[0];
-            $manager = $this->users[1];
-            $developer = $this->users[2];
-            $intern = $this->users[3];
+            extract(createAdvancedFixtures());
+            $admin = $users[0];
+            $manager = $users[1];
+            $developer = $users[2];
+            $intern = $users[3];
 
-            $project = $this->projects->first();
+            $project = $projects->first();
 
             // Assign hierarchical roles
             app(RoleManager::class)->assign($admin, $project, 'TestAdmin');
@@ -77,8 +84,9 @@ describe('Advanced Scenarios Tests', function () {
         });
 
         it('handles role promotion and demotion chains', function () {
-            $user = $this->users->first();
-            $project = $this->projects->first();
+            extract(createAdvancedFixtures());
+            $user = $users->first();
+            $project = $projects->first();
 
             // Start as viewer
             app(RoleManager::class)->assign($user, $project, 'TestViewer');
@@ -108,15 +116,16 @@ describe('Advanced Scenarios Tests', function () {
         });
 
         it('manages overlapping role responsibilities', function () {
-            $user = $this->users->first();
+            extract(createAdvancedFixtures());
+            $user = $users->first();
 
             // Assign to multiple projects with different roles
             $projectRoles = [
-                [$this->projects[0], 'TestAdmin'],
-                [$this->projects[1], 'TestEditor'],
-                [$this->projects[2], 'TestViewer'],
-                [$this->projects[3], 'TestAdmin'],
-                [$this->projects[4], 'TestEditor'],
+                [$projects[0], 'TestAdmin'],
+                [$projects[1], 'TestEditor'],
+                [$projects[2], 'TestViewer'],
+                [$projects[3], 'TestAdmin'],
+                [$projects[4], 'TestEditor'],
             ];
 
             foreach ($projectRoles as [$project, $role]) {
@@ -124,27 +133,28 @@ describe('Advanced Scenarios Tests', function () {
             }
 
             // User should have admin on projects 0 and 3
-            expect($user->hasRoleOn($this->projects[0], 'TestAdmin'))->toBeTrue();
-            expect($user->hasRoleOn($this->projects[3], 'TestAdmin'))->toBeTrue();
+            expect($user->hasRoleOn($projects[0], 'TestAdmin'))->toBeTrue();
+            expect($user->hasRoleOn($projects[3], 'TestAdmin'))->toBeTrue();
 
             // User should have manager on projects 1 and 4
-            expect($user->hasRoleOn($this->projects[1], 'TestEditor'))->toBeTrue();
-            expect($user->hasRoleOn($this->projects[4], 'TestEditor'))->toBeTrue();
+            expect($user->hasRoleOn($projects[1], 'TestEditor'))->toBeTrue();
+            expect($user->hasRoleOn($projects[4], 'TestEditor'))->toBeTrue();
 
             // User should have developer only on project 2
-            expect($user->hasRoleOn($this->projects[2], 'TestViewer'))->toBeTrue();
+            expect($user->hasRoleOn($projects[2], 'TestViewer'))->toBeTrue();
 
             // Cross-check: admin user should not have manager role on admin projects
-            expect($user->hasRoleOn($this->projects[0], 'TestEditor'))->toBeFalse();
+            expect($user->hasRoleOn($projects[0], 'TestEditor'))->toBeFalse();
         });
     });
 
     describe('Circular Dependency Detection', function () {
         it('prevents basic circular role assignments', function () {
-            $userA = $this->users[0];
-            $userB = $this->users[1];
-            $projectA = $this->projects[0];
-            $projectB = $this->projects[1];
+            extract(createAdvancedFixtures());
+            $userA = $users[0];
+            $userB = $users[1];
+            $projectA = $projects[0];
+            $projectB = $projects[1];
 
             // Create potential circular scenario
             app(RoleManager::class)->assign($userA, $projectA, 'TestAdmin');
@@ -161,10 +171,11 @@ describe('Advanced Scenarios Tests', function () {
         });
 
         it('handles complex multi-entity circular scenarios', function () {
+            extract(createAdvancedFixtures());
             // Create a complex web of relationships
             $entities = [
-                'users' => $this->users->take(5),
-                'projects' => $this->projects->take(5),
+                'users' => $users->take(5),
+                'projects' => $projects->take(5),
             ];
 
             // Create a web of relationships
@@ -196,10 +207,11 @@ describe('Advanced Scenarios Tests', function () {
         });
 
         it('prevents infinite recursion in role resolution', function () {
+            extract(createAdvancedFixtures());
             // Create nested project structure that could cause recursion
-            $parentProject = $this->projects[0];
-            $childProjects = $this->projects->slice(1, 3);
-            $user = $this->users->first();
+            $parentProject = $projects[0];
+            $childProjects = $projects->slice(1, 3);
+            $user = $users->first();
 
             // Assign user to parent
             app(RoleManager::class)->assign($user, $parentProject, 'TestAdmin');
@@ -231,8 +243,9 @@ describe('Advanced Scenarios Tests', function () {
         });
 
         it('handles self-referential entity scenarios', function () {
-            $user = $this->users->first();
-            $project = $this->projects->first();
+            extract(createAdvancedFixtures());
+            $user = $users->first();
+            $project = $projects->first();
 
             // Assign user admin role on project
             app(RoleManager::class)->assign($user, $project, 'TestAdmin');
@@ -261,14 +274,15 @@ describe('Advanced Scenarios Tests', function () {
 
     describe('Cross-Tenant Isolation', function () {
         it('ensures complete isolation between different tenant contexts', function () {
+            extract(createAdvancedFixtures());
             // Simulate different tenants by using different project groups
-            $tenant1Projects = $this->projects->slice(0, 3);
-            $tenant2Projects = $this->projects->slice(3, 3);
-            $tenant3Projects = $this->projects->slice(6, 3);
+            $tenant1Projects = $projects->slice(0, 3);
+            $tenant2Projects = $projects->slice(3, 3);
+            $tenant3Projects = $projects->slice(6, 3);
 
-            $tenant1Users = $this->users->slice(0, 5);
-            $tenant2Users = $this->users->slice(5, 5);
-            $tenant3Users = $this->users->slice(10, 5);
+            $tenant1Users = $users->slice(0, 5);
+            $tenant2Users = $users->slice(5, 5);
+            $tenant3Users = $users->slice(10, 5);
 
             // Set up tenant 1
             foreach ($tenant1Users as $user) {
@@ -316,11 +330,12 @@ describe('Advanced Scenarios Tests', function () {
         });
 
         it('prevents data leakage between tenant boundaries', function () {
-            $tenant1User = $this->users[0];
-            $tenant2User = $this->users[10];
+            extract(createAdvancedFixtures());
+            $tenant1User = $users[0];
+            $tenant2User = $users[10];
 
-            $tenant1Project = $this->projects[0];
-            $tenant2Project = $this->projects[5];
+            $tenant1Project = $projects[0];
+            $tenant2Project = $projects[5];
 
             // Set up roles
             app(RoleManager::class)->assign($tenant1User, $tenant1Project, 'TestAdmin');
@@ -344,11 +359,12 @@ describe('Advanced Scenarios Tests', function () {
         });
 
         it('handles tenant switching scenarios', function () {
-            $user = $this->users->first();
+            extract(createAdvancedFixtures());
+            $user = $users->first();
 
             // User has roles in multiple "tenants" (different projects)
-            $tenant1Projects = $this->projects->slice(0, 2);
-            $tenant2Projects = $this->projects->slice(2, 2);
+            $tenant1Projects = $projects->slice(0, 2);
+            $tenant2Projects = $projects->slice(2, 2);
 
             foreach ($tenant1Projects as $project) {
                 app(RoleManager::class)->assign($user, $project, 'TestAdmin');
@@ -373,21 +389,22 @@ describe('Advanced Scenarios Tests', function () {
         });
 
         it('maintains isolation during bulk operations', function () {
+            extract(createAdvancedFixtures());
             // Create large-scale multi-tenant scenario
             $tenantsData = [
                 'tenant_a' => [
-                    'users' => $this->users->slice(0, 5),
-                    'projects' => $this->projects->slice(0, 3),
+                    'users' => $users->slice(0, 5),
+                    'projects' => $projects->slice(0, 3),
                     'role' => 'TestAdmin',
                 ],
                 'tenant_b' => [
-                    'users' => $this->users->slice(5, 5),
-                    'projects' => $this->projects->slice(3, 3),
+                    'users' => $users->slice(5, 5),
+                    'projects' => $projects->slice(3, 3),
                     'role' => 'TestEditor',
                 ],
                 'tenant_c' => [
-                    'users' => $this->users->slice(10, 5),
-                    'projects' => $this->projects->slice(6, 3),
+                    'users' => $users->slice(10, 5),
+                    'projects' => $projects->slice(6, 3),
                     'role' => 'TestViewer',
                 ],
             ];
@@ -429,10 +446,11 @@ describe('Advanced Scenarios Tests', function () {
         });
 
         it('handles tenant deletion and cleanup scenarios', function () {
-            $user = $this->users->first();
+            extract(createAdvancedFixtures());
+            $user = $users->first();
 
             // User has roles in multiple tenants
-            $tenantProjects = $this->projects->slice(0, 5);
+            $tenantProjects = $projects->slice(0, 5);
 
             foreach ($tenantProjects as $project) {
                 app(RoleManager::class)->assign($user, $project, 'TestAdmin');
@@ -445,7 +463,7 @@ describe('Advanced Scenarios Tests', function () {
             $remainingTenantProjects = $tenantProjects->slice(2, 3);
 
             foreach ($deletedTenantProjects as $project) {
-                app(RoleManager::class)->remove($user, $project, 'TestAdmin');
+                app(RoleManager::class)->remove($user, $project);
             }
 
             expect(DB::table('roster')->count())->toBe(3);
@@ -464,16 +482,17 @@ describe('Advanced Scenarios Tests', function () {
 
     describe('Edge Case Combinations', function () {
         it('handles all advanced scenarios combined', function () {
+            extract(createAdvancedFixtures());
             // Complex scenario combining multiple advanced features
-            $superAdmin = $this->users[0];
-            $tenantAdmins = $this->users->slice(1, 3)->values();
-            $regularUsers = $this->users->slice(4, 10)->values();
+            $superAdmin = $users[0];
+            $tenantAdmins = $users->slice(1, 3)->values();
+            $regularUsers = $users->slice(4, 10)->values();
 
             // Create multi-tenant, multi-hierarchy scenario
             $tenants = [
-                'enterprise' => $this->projects->slice(0, 3),
-                'startup' => $this->projects->slice(3, 3),
-                'nonprofit' => $this->projects->slice(6, 3),
+                'enterprise' => $projects->slice(0, 3),
+                'startup' => $projects->slice(3, 3),
+                'nonprofit' => $projects->slice(6, 3),
             ];
 
             // Super admin has access to everything
