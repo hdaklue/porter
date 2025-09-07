@@ -10,7 +10,8 @@ test('BaseRole implements Arrayable interface correctly', function () {
     $array = $admin->toArray();
 
     expect($array)->toBeArray()
-        ->and($array)->toHaveKeys(['name', 'level', 'label', 'description', 'plain_key', 'db_key'])
+        ->and($array)->toHaveKeys(['name', 'level', 'label', 'description', 'plain_key'])
+        ->and(array_key_exists('db_key', $array))->toBeFalse() // db_key should be excluded by default
         ->and($array['name'])->toBe('TestAdmin')
         ->and($array['level'])->toBe(10)
         ->and($array['label'])->toBe('Test Administrator')
@@ -51,6 +52,32 @@ test('role array structure is consistent across different role types', function 
     $editorArray = $editor->toArray();
     
     expect(array_keys($adminArray))->toBe(array_keys($editorArray))
-        ->and($adminArray['name'])->not->toBe($editorArray['name'])
-        ->and($adminArray['level'])->not->toBe($editorArray['level']);
+        ->and($adminArray['name'] !== $editorArray['name'])->toBeTrue()
+        ->and($adminArray['level'] !== $editorArray['level'])->toBeTrue();
+});
+
+test('db_key is included when explicitly requested', function () {
+    $admin = new TestAdmin();
+    
+    $arrayWithoutDbKey = $admin->toArray();
+    $arrayWithDbKey = $admin->toArray(includeDbKey: true);
+    
+    expect(array_key_exists('db_key', $arrayWithoutDbKey))->toBeFalse()
+        ->and($arrayWithDbKey)->toHaveKey('db_key')
+        ->and($arrayWithDbKey['db_key'])->toBeString()
+        ->and(empty($arrayWithDbKey['db_key']))->toBeFalse();
+});
+
+test('JSON serialization respects db_key parameter', function () {
+    $admin = new TestAdmin();
+    
+    $jsonWithoutDbKey = $admin->toJson();
+    $jsonWithDbKey = $admin->toJson(includeDbKey: true);
+    
+    $decodedWithout = json_decode($jsonWithoutDbKey, true);
+    $decodedWith = json_decode($jsonWithDbKey, true);
+    
+    expect(array_key_exists('db_key', $decodedWithout))->toBeFalse()
+        ->and($decodedWith)->toHaveKey('db_key')
+        ->and($decodedWith['db_key'])->toBeString();
 });

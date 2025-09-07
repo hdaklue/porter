@@ -414,24 +414,34 @@ abstract class BaseRole implements RoleContract, Arrayable, Jsonable
 
     /**
      * Convert role to array representation.
+     * 
+     * @param bool $includeDbKey Whether to include the sensitive db_key in output
      */
-    public function toArray(): array
+    public function toArray(bool $includeDbKey = false): array
     {
-        return [
+        $array = [
             'name' => $this->getName(),
             'level' => $this->getLevel(),
             'label' => $this->getLabel(),
             'description' => $this->getDescription(),
             'plain_key' => static::getPlainKey(),
-            'db_key' => static::getDbKey(),
         ];
+
+        if ($includeDbKey) {
+            $array['db_key'] = static::getDbKey();
+        }
+
+        return $array;
     }
 
     /**
      * Convert role to JSON representation.
+     * 
+     * @param int $options JSON encoding options
+     * @param bool $includeDbKey Whether to include the sensitive db_key in output
      */
-    public function toJson($options = 0): string
+    public function toJson($options = 0, bool $includeDbKey = false): string
     {
-        return json_encode($this->toArray(), $options);
+        return json_encode($this->toArray($includeDbKey), $options);
     }
 }
