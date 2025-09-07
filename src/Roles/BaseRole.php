@@ -6,10 +6,12 @@ namespace Hdaklue\Porter\Roles;
 
 use Hdaklue\Porter\Concerns\HasRoleHierarchy;
 use Hdaklue\Porter\Contracts\RoleContract;
+use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-abstract class BaseRole implements RoleContract
+abstract class BaseRole implements RoleContract, Arrayable, Jsonable
 {
     use HasRoleHierarchy;
 
@@ -408,5 +410,28 @@ abstract class BaseRole implements RoleContract
             // If RoleFactory fails (e.g., no Porter directory), return empty array
             return [];
         }
+    }
+
+    /**
+     * Convert role to array representation.
+     */
+    public function toArray(): array
+    {
+        return [
+            'name' => $this->getName(),
+            'level' => $this->getLevel(),
+            'label' => $this->getLabel(),
+            'description' => $this->getDescription(),
+            'plain_key' => static::getPlainKey(),
+            'db_key' => static::getDbKey(),
+        ];
+    }
+
+    /**
+     * Convert role to JSON representation.
+     */
+    public function toJson($options = 0): string
+    {
+        return json_encode($this->toArray(), $options);
     }
 }
