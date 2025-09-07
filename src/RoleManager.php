@@ -398,10 +398,10 @@ final class RoleManager implements RoleManagerContract
     public function getCacheTtl(string $type): int
     {
         return match ($type) {
-            'role_check' => config('porter.cache.role_check_ttl', config('porter.cache.ttl', 1800)),
-            'participants' => config('porter.cache.participants_ttl', config('porter.cache.ttl', 3600)),
-            'assigned_entities' => config('porter.cache.assigned_entities_ttl', config('porter.cache.ttl', 3600)),
-            default => config('porter.cache.ttl', 3600)
+            'role_check' => (int) config('porter.cache.role_check_ttl', config('porter.cache.ttl', 1800)),
+            'participants' => (int) config('porter.cache.participants_ttl', config('porter.cache.ttl', 3600)),
+            'assigned_entities' => (int) config('porter.cache.assigned_entities_ttl', config('porter.cache.ttl', 3600)),
+            default => (int) config('porter.cache.ttl', 3600)
         };
     }
 
