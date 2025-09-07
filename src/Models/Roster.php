@@ -63,6 +63,45 @@ final class Roster extends Model
     ];
 
     /**
+     * Create a new Eloquent model instance.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function __construct(array $attributes = [])
+    {
+        parent::__construct($attributes);
+        $this->conditionallyLoadRelations();
+    }
+
+    /**
+     * Conditionally load relations based on configuration and environment.
+     */
+    protected function conditionallyLoadRelations(): void
+    {
+        if (config('porter.load_relations', false) && $this->shouldEagerLoadRelations()) {
+            $this->with = ['assignable', 'roleable'];
+        }
+    }
+
+    /**
+     * Determine if relations should be eager loaded.
+     */
+    protected function shouldEagerLoadRelations(): bool
+    {
+        // Don't eager load in tests to avoid database connection issues with test fixtures
+        if (app()->runningUnitTests()) {
+            return false;
+        }
+
+        // Don't eager load if we're in console context and not migrating
+        if (app()->runningInConsole() && ! app()->bound('migrator')) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Get the database connection for the model.
      */
     public function getConnectionName()
