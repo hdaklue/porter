@@ -502,10 +502,10 @@ describe('Advanced Scenarios Tests', function () {
             foreach ($regularUsers as $userIndex => $user) {
                 $tenantIndex = $userIndex % 3;
                 $tenantProjectsArray = array_values($tenants);
-                
+
                 if (count($tenantProjectsArray) > 0 && isset($tenantProjectsArray[$tenantIndex])) {
                     $tenantProjects = $tenantProjectsArray[$tenantIndex];
-                    
+
                     if ($tenantProjects->count() > 0) {
                         $projectIndex = $userIndex % $tenantProjects->count();
                         $project = $tenantProjects->get($projectIndex);

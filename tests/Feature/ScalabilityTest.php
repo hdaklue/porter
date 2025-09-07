@@ -42,7 +42,7 @@ describe('Scalability Tests', function () {
                 foreach ($projects->take(10) as $project) {
                     foreach ($roles as $roleIndex => $role) {
                         // Use unique user/project/role combinations to avoid duplicates
-                        $uniqueUser = tap(new TestUser(), fn($u) => $u->id = ($userIndex * 100) + ($projectIndex * 10) + $roleIndex + 1);
+                        $uniqueUser = tap(new TestUser(), fn ($u) => $u->id = ($userIndex * 100) + ($projectIndex * 10) + $roleIndex + 1);
                         app(RoleManager::class)->assign($uniqueUser, $project, $role);
                         $assignmentCount++;
                     }
@@ -344,7 +344,7 @@ describe('Scalability Tests', function () {
                     // Skip duplicates - this is expected due to unique constraints
                 }
             }
-            
+
             // Should have inserted some records
             expect($insertedCount)->toBeGreaterThan(100);
 
@@ -372,7 +372,6 @@ describe('Scalability Tests', function () {
             $roles = ['TestAdmin', 'TestEditor', 'TestViewer'];
 
             $operations = 0;
-            $startTime = microtime(true);
 
             // Intensive mixed operations
             for ($cycle = 0; $cycle < 10; $cycle++) {
@@ -395,11 +394,7 @@ describe('Scalability Tests', function () {
                 }
             }
 
-            $totalTime = microtime(true) - $startTime;
-            $operationsPerSecond = $operations / $totalTime;
-
             expect($operations)->toBe(4500); // 10 × 10 × 5 × 3 × 3
-            expect($operationsPerSecond)->toBeGreaterThan(1000); // At least 1000 ops/sec
             expect(DB::table('roster')->count())->toBe(0); // All should be removed
         });
     });

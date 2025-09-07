@@ -45,7 +45,7 @@ describe('Error Recovery Tests', function () {
                 try {
                     app(RoleManager::class)->assign($user, $this->project, 'TestAdmin');
                     $assignments++;
-                    
+
                     // Try duplicate assignment
                     app(RoleManager::class)->assign($user, $this->project, 'TestAdmin');
                     $assignments++;
@@ -108,14 +108,14 @@ describe('Error Recovery Tests', function () {
             // Try to create duplicate assignment through the system (should be handled gracefully)
             try {
                 app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
-                
+
                 // If it allows duplicates, verify only one record exists or it's handled properly
                 $count = DB::table('roster')
                     ->where('assignable_id', $this->user->id)
                     ->where('roleable_id', $this->project->id)
                     ->where('role_key', 'TestAdmin')
                     ->count();
-                
+
                 expect($count)->toBeLessThanOrEqual(2); // At most one duplicate allowed
             } catch (\Exception $e) {
                 // Exception is acceptable for duplicate prevention
@@ -248,7 +248,7 @@ describe('Error Recovery Tests', function () {
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-                
+
                 // If database accepts long strings, system should handle it
                 expect(DB::table('roster')->count())->toBeGreaterThan(0);
                 DB::table('roster')->truncate();
@@ -298,10 +298,10 @@ describe('Error Recovery Tests', function () {
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-                
+
                 // If insert succeeds, verify system can handle it
                 expect(DB::table('roster')->count())->toBeGreaterThan(0);
-                
+
                 // Clean up
                 DB::table('roster')->truncate();
             } catch (\Exception $e) {
@@ -324,10 +324,10 @@ describe('Error Recovery Tests', function () {
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
-                    
+
                     // If insert succeeds, verify system can still handle it
                     expect(DB::table('roster')->count())->toBeGreaterThan(0);
-                    
+
                     // Clean up for next iteration
                     DB::table('roster')->truncate();
                 } catch (\Exception $e) {

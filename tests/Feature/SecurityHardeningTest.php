@@ -39,8 +39,8 @@ describe('Security Hardening Tests', function () {
         it('prevents SQL injection in assignable type', function () {
             // This test would require mocking, so let's simplify it
             // Test with potentially dangerous input data
-            $maliciousData = ["'; DROP TABLE roster; --", "UNION SELECT", "<script>"];
-            
+            $maliciousData = ["'; DROP TABLE roster; --", 'UNION SELECT', '<script>'];
+
             foreach ($maliciousData as $data) {
                 expect(function () use ($data) {
                     app(RoleManager::class)->assign($this->user, $this->project, $data);
@@ -78,7 +78,7 @@ describe('Security Hardening Tests', function () {
             // Both should return boolean results
             expect($validResult)->toBe(true);
             expect($invalidResult)->toBe(false);
-            
+
             // Both operations should complete reasonably quickly (< 1 second)
             expect($validTime)->toBeLessThan(1.0);
             expect($invalidTime)->toBeLessThan(1.0);
@@ -87,14 +87,14 @@ describe('Security Hardening Tests', function () {
         it('prevents information leakage through error timing', function () {
             // Test that error scenarios complete without hanging or crashing
             $invalidScenarios = [
-                fn() => $this->user->hasRoleOn($this->project, null),
-                fn() => $this->user->hasRoleOn($this->project, 'NonExistent'),
-                fn() => $this->user->hasRoleOn($this->project, ''),
+                fn () => $this->user->hasRoleOn($this->project, null),
+                fn () => $this->user->hasRoleOn($this->project, 'NonExistent'),
+                fn () => $this->user->hasRoleOn($this->project, ''),
             ];
 
             foreach ($invalidScenarios as $scenario) {
                 $start = microtime(true);
-                
+
                 try {
                     $result = $scenario();
                     // Should return false for invalid scenarios
@@ -103,7 +103,7 @@ describe('Security Hardening Tests', function () {
                     // Exceptions are also acceptable
                     expect($e)->toBeInstanceOf(\Exception::class);
                 }
-                
+
                 $duration = microtime(true) - $start;
                 // Should not hang (complete within reasonable time)
                 expect($duration)->toBeLessThan(1.0);
@@ -205,10 +205,10 @@ describe('Security Hardening Tests', function () {
 
             // Remove and reassign
             app(RoleManager::class)->remove($this->user, $this->project);
-            
+
             // Clear any potential cache
             sleep(1); // Ensure different timestamp
-            
+
             app(RoleManager::class)->assign($this->user, $this->project, 'TestAdmin');
 
             $secondRecord = DB::table('roster')->where([
@@ -245,7 +245,7 @@ describe('Security Hardening Tests', function () {
 
             // Should have created 2 records
             expect($records)->toHaveCount(2);
-            
+
             // Each record should have encrypted role keys (not plain text)
             foreach ($records as $record) {
                 expect($record->role_key)->not()->toBe('TestAdmin');
@@ -261,7 +261,7 @@ describe('Security Hardening Tests', function () {
 
             try {
                 app(RoleManager::class)->assign($this->user, $this->project, $sensitiveRoleKey);
-                
+
                 // If assignment succeeds, verify the system still works
                 expect(true)->toBe(true);
             } catch (\Exception $e) {
