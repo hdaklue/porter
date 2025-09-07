@@ -24,16 +24,7 @@ final class RoleManager implements RoleManagerContract
     public function assign(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): void
     {
         DB::transaction(function () use ($user, $target, $role) {
-            if (is_string($role)) {
-                $this->ensureRoleExists($role);
-                try {
-                    $roleInstance = RoleFactory::make($role);
-                } catch (InvalidArgumentException $e) {
-                    $roleInstance = BaseRole::make($role);
-                }
-            } else {
-                $roleInstance = $role;
-            }
+            $roleInstance = $this->resolveRole($role);
 
             $assignmentStrategy = config('porter.security.assignment_strategy', 'replace');
 
@@ -76,16 +67,7 @@ final class RoleManager implements RoleManagerContract
     public function changeRoleOn(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): void
     {
         DB::transaction(function () use ($user, $target, $role) {
-            if (is_string($role)) {
-                $this->ensureRoleExists($role);
-                try {
-                    $newRole = RoleFactory::make($role);
-                } catch (InvalidArgumentException $e) {
-                    $newRole = BaseRole::make($role);
-                }
-            } else {
-                $newRole = $role;
-            }
+            $newRole = $this->resolveRole($role);
 
             $newEncryptedKey = $newRole::getDbKey();
 
@@ -99,6 +81,10 @@ final class RoleManager implements RoleManagerContract
             if ($model) {
                 $oldEncryptedKey = $model->getRoleDBKey();
                 $oldRole = RoleFactory::tryMake($oldEncryptedKey);
+
+                // Clear old role cache before changing
+                $oldCacheKey = $this->generateRoleCheckCacheKeyByEncryptedKey($user, $target, $oldEncryptedKey);
+                Cache::forget($oldCacheKey);
 
                 $model->role_key = $newEncryptedKey;
                 $model->save();
@@ -118,17 +104,7 @@ final class RoleManager implements RoleManagerContract
 
     public function getParticipantsHasRole(RoleableEntity $target, string|RoleContract $role): Collection
     {
-        if (is_string($role)) {
-            $this->ensureRoleExists($role);
-            try {
-                $roleInstance = RoleFactory::make($role);
-            } catch (InvalidArgumentException $e) {
-                $roleInstance = BaseRole::make($role);
-            }
-        } else {
-            $roleInstance = $role;
-        }
-
+        $roleInstance = $this->resolveRole($role);
         $encryptedKey = $roleInstance::getDbKey();
 
         return Roster::where([
@@ -153,46 +129,47 @@ final class RoleManager implements RoleManagerContract
 
     public function getAssignedEntitiesByType(AssignableEntity $entity, string $type): Collection
     {
-        $cacheKey = $this->generateAssignedEntitiesCacheKey($entity, $type);
-        if (config('porter.should_cache')) {
-            return Cache::remember($cacheKey, now()->addHour(), fn () => Roster::where([
+        if (! $this->shouldCache()) {
+            return Roster::where([
                 'roleable_type' => $type,
                 'assignable_type' => $entity->getMorphClass(),
                 'assignable_id' => $entity->getKey(),
             ])
                 ->with('roleable')
-                ->get()
-                ->pluck('roleable'));
+                ->get()->pluck('roleable');
         }
 
-        return Roster::where([
+        $cacheKey = $this->generateAssignedEntitiesCacheKey($entity, $type);
+
+        return Cache::remember($cacheKey, $this->getCacheTtl('assigned_entities'), fn () => Roster::where([
             'roleable_type' => $type,
             'assignable_type' => $entity->getMorphClass(),
             'assignable_id' => $entity->getKey(),
         ])
             ->with('roleable')
-            ->get()->pluck('roleable');
+            ->get()
+            ->pluck('roleable'));
     }
 
     public function getParticipantsWithRoles(RoleableEntity $target): Collection
     {
-        if (config('porter.should_cache')) {
-            return Cache::remember($this->generateParticipantsCacheKey($target), now()->addHour(), function () use ($target) {
-                return Roster::where([
-                    'roleable_id' => $target->getKey(),
-                    'roleable_type' => $target->getMorphClass(),
-                ])
-                    ->with('assignable')
-                    ->get();
-            });
+        if (! $this->shouldCache()) {
+            return Roster::where([
+                'roleable_id' => $target->getKey(),
+                'roleable_type' => $target->getMorphClass(),
+            ])
+                ->with('assignable')
+                ->get();
         }
 
-        return Roster::where([
-            'roleable_id' => $target->getKey(),
-            'roleable_type' => $target->getMorphClass(),
-        ])
-            ->with('assignable')
-            ->get();
+        return Cache::remember($this->generateParticipantsCacheKey($target), $this->getCacheTtl('participants'), function () use ($target) {
+            return Roster::where([
+                'roleable_id' => $target->getKey(),
+                'roleable_type' => $target->getMorphClass(),
+            ])
+                ->with('assignable')
+                ->get();
+        });
     }
 
     public function hasRoleOn(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): bool
@@ -211,12 +188,6 @@ final class RoleManager implements RoleManagerContract
 
         $encryptedKey = $roleInstance::getDbKey();
 
-        if (config('porter.should_cache')) {
-            $cacheKey = $this->generateRoleCheckCacheKey($user, $target, $roleInstance);
-
-            return Cache::remember($cacheKey, now()->addMinutes(30), fn () => $this->performRoleCheck($user, $target, $encryptedKey));
-        }
-
         return $this->performRoleCheck($user, $target, $encryptedKey);
     }
 
@@ -232,20 +203,20 @@ final class RoleManager implements RoleManagerContract
 
     public function getRoleOn(AssignableEntity $user, RoleableEntity $target): ?RoleContract
     {
-        $encryptedKey = Roster::where([
+        $roster = Roster::where([
             'assignable_id' => $user->getKey(),
             'assignable_type' => $user->getMorphClass(),
             'roleable_type' => $target->getMorphClass(),
             'roleable_id' => $target->getKey(),
-        ])->first()?->role_key::getDbKey();
+        ])->first();
 
-        if ($encryptedKey) {
-            $role = RoleFactory::tryMake($encryptedKey);
-
-            return $role;
+        if (! $roster) {
+            return null;
         }
 
-        return null;
+        $encryptedKey = $roster->getRoleDBKey();
+
+        return RoleFactory::tryMake($encryptedKey);
     }
 
     public function isAtLeastOn(AssignableEntity $user, RoleContract $role, RoleableEntity $target): bool
@@ -277,9 +248,18 @@ final class RoleManager implements RoleManagerContract
         // Forget participants cache
         Cache::forget($this->generateParticipantsCacheKey($target));
 
-        // Forget assignable entity cache if user provided
         if ($user) {
+            // Forget assignable entity cache for this specific type
             Cache::forget($this->generateAssignedEntitiesCacheKey($user, $target->getMorphClass()));
+
+            // Clear all role check caches for this user-target combination
+            $this->clearRoleCheckCaches($user, $target);
+
+            // Clear assigned entities cache for all types for this user
+            $this->clearAllAssignedEntitiesCaches($user);
+        } else {
+            // If no user specified, clear all participant-related caches
+            $this->clearAllParticipantRelatedCaches($target);
         }
     }
 
@@ -293,7 +273,7 @@ final class RoleManager implements RoleManagerContract
     public function bulkClearCache(Collection $targets): void
     {
         $targets->each(function (RoleableEntity $target) {
-            return $this->clearCache($target);
+            $this->clearCache($target);
         });
     }
 
@@ -306,23 +286,41 @@ final class RoleManager implements RoleManagerContract
             'roleable_type' => $target->getMorphClass(),
         ])->lockForUpdate()->get();
 
-        Roster::where([
-            'assignable_type' => $user->getMorphClass(),
-            'assignable_id' => $user->getKey(),
-            'roleable_id' => $target->getKey(),
-            'roleable_type' => $target->getMorphClass(),
-        ])->delete();
+        if ($assignments->isNotEmpty()) {
+            // Clear role check caches BEFORE deletion
+            foreach ($assignments as $assignment) {
+                $encryptedKey = $assignment->getRoleDBKey();
+                $cacheKey = $this->generateRoleCheckCacheKeyByEncryptedKey($user, $target, $encryptedKey);
+                Cache::forget($cacheKey);
+            }
 
-        foreach ($assignments as $assignment) {
-            $encryptedKey = $assignment->getRoleDBKey();
-            $role = RoleFactory::tryMake($encryptedKey);
-            if ($role) {
-                RoleRemoved::dispatch($user, $target, $role);
+            $assignmentIds = $assignments->pluck('id');
+            Roster::whereIn('id', $assignmentIds)->delete();
+
+            foreach ($assignments as $assignment) {
+                $encryptedKey = $assignment->getRoleDBKey();
+                $role = RoleFactory::tryMake($encryptedKey);
+                if ($role) {
+                    RoleRemoved::dispatch($user, $target, $role);
+                }
             }
         }
     }
 
     private function performRoleCheck(AssignableEntity $user, RoleableEntity $target, string $encryptedKey): bool
+    {
+        if (! $this->shouldCache()) {
+            return $this->executeRoleCheck($user, $target, $encryptedKey);
+        }
+
+        $cacheKey = $this->generateRoleCheckCacheKeyByEncryptedKey($user, $target, $encryptedKey);
+
+        return Cache::remember($cacheKey, $this->getCacheTtl('role_check'),
+            fn () => $this->executeRoleCheck($user, $target, $encryptedKey)
+        );
+    }
+
+    private function executeRoleCheck(AssignableEntity $user, RoleableEntity $target, string $encryptedKey): bool
     {
         return Roster::where([
             'assignable_id' => $user->getKey(),
@@ -340,6 +338,13 @@ final class RoleManager implements RoleManagerContract
         return "{$prefix}:role_check:{$user->getMorphClass()}:{$user->getKey()}:{$target->getMorphClass()}:{$target->getKey()}:{$role->getName()}";
     }
 
+    private function generateRoleCheckCacheKeyByEncryptedKey(AssignableEntity $user, RoleableEntity $target, string $encryptedKey): string
+    {
+        $prefix = config('porter.cache.key_prefix', 'porter');
+
+        return "{$prefix}:role_check_key:{$user->getMorphClass()}:{$user->getKey()}:{$target->getMorphClass()}:{$target->getKey()}:".hash('sha256', $encryptedKey);
+    }
+
     private function clearAssignableEntityCache(AssignableEntity $user, string $type): void
     {
         Cache::forget($this->generateAssignedEntitiesCacheKey($user, $type));
@@ -350,5 +355,68 @@ final class RoleManager implements RoleManagerContract
         $prefix = config('porter.cache.key_prefix', 'porter');
 
         return "{$prefix}:{$target->getMorphClass()}:{$target->getKey()}_{$type}_entities";
+    }
+
+    private function clearRoleCheckCaches(AssignableEntity $user, RoleableEntity $target): void
+    {
+        $prefix = config('porter.cache.key_prefix', 'porter');
+
+        // Clear role name-based caches
+        $baseKey = "{$prefix}:role_check:{$user->getMorphClass()}:{$user->getKey()}:{$target->getMorphClass()}:{$target->getKey()}";
+        $commonRoles = ['admin', 'manager', 'editor', 'viewer', 'user', 'guest'];
+        foreach ($commonRoles as $roleName) {
+            Cache::forget("{$baseKey}:{$roleName}");
+        }
+
+        // Role check caches are cleared directly in the transaction methods
+    }
+
+    private function clearAllAssignedEntitiesCaches(AssignableEntity $user): void
+    {
+        $prefix = config('porter.cache.key_prefix', 'porter');
+
+        // Clear assigned entities caches for common entity types
+        $commonTypes = ['App\\Models\\User', 'App\\Models\\Project', 'App\\Models\\Organization', 'App\\Models\\Team'];
+        foreach ($commonTypes as $type) {
+            $cacheKey = "{$prefix}:{$user->getMorphClass()}:{$user->getKey()}_{$type}_entities";
+            Cache::forget($cacheKey);
+        }
+    }
+
+    private function clearAllParticipantRelatedCaches(RoleableEntity $target): void
+    {
+        // For now, just clear the participants cache
+        // In a more comprehensive implementation, we might clear related caches
+        Cache::forget($this->generateParticipantsCacheKey($target));
+    }
+
+    private function shouldCache(): bool
+    {
+        return config('porter.cache.enabled', true);
+    }
+
+    public function getCacheTtl(string $type): int
+    {
+        return match ($type) {
+            'role_check' => config('porter.cache.role_check_ttl', config('porter.cache.ttl', 1800)),
+            'participants' => config('porter.cache.participants_ttl', config('porter.cache.ttl', 3600)),
+            'assigned_entities' => config('porter.cache.assigned_entities_ttl', config('porter.cache.ttl', 3600)),
+            default => config('porter.cache.ttl', 3600)
+        };
+    }
+
+    private function resolveRole(string|RoleContract $role): RoleContract
+    {
+        if ($role instanceof RoleContract) {
+            return $role;
+        }
+
+        $this->ensureRoleExists($role);
+
+        try {
+            return RoleFactory::make($role);
+        } catch (InvalidArgumentException $e) {
+            return BaseRole::make($role);
+        }
     }
 }

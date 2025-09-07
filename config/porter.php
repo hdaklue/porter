@@ -123,17 +123,12 @@ return [
         'enabled' => env('PORTER_CACHE_ENABLED', true),
         'connection' => env('PORTER_CACHE_CONNECTION', 'default'),
         'key_prefix' => env('PORTER_CACHE_PREFIX', 'porter'),
-        'ttl' => env('PORTER_CACHE_TTL', 3600), // 1 hour
+        'ttl' => env('PORTER_CACHE_TTL', 3600), // Default TTL: 1 hour
         'use_tags' => env('PORTER_CACHE_USE_TAGS', true),
-    ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Legacy Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Legacy configuration for backwards compatibility.
-    |
-    */
-    'should_cache' => env('PORTER_CACHE_ENABLED', true),
+        // Specific TTL configurations for different cache types (in seconds)
+        'role_check_ttl' => env('PORTER_CACHE_ROLE_CHECK_TTL', 1800), // 30 minutes
+        'participants_ttl' => env('PORTER_CACHE_PARTICIPANTS_TTL', 3600), // 1 hour
+        'assigned_entities_ttl' => env('PORTER_CACHE_ASSIGNED_ENTITIES_TTL', 3600), // 1 hour
+    ],
 ];
