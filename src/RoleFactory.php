@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter;
 
+use Hdaklue\Porter\Contracts\RoleContract;
 use Hdaklue\Porter\Roles\BaseRole;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -64,7 +65,7 @@ final class RoleFactory
      * @param  string  $roleKey  The role key (plain snake_case or encrypted from database)
      * @return BaseRole|null The role instance or null
      */
-    public static function tryMake(string $roleKey): ?BaseRole
+    public static function tryMake(string $roleKey): null|BaseRole
     {
         // Try encrypted key first
         $role = BaseRole::fromDbKey($roleKey);
@@ -117,14 +118,14 @@ final class RoleFactory
         $namespace = config('porter.namespace');
 
         // Handle null config values
-        if (! $porterDir || ! $namespace) {
+        if (!$porterDir || !$namespace) {
             throw new InvalidArgumentException('Porter directory or namespace not configured.');
         }
 
         // Use cached file check to avoid repeated file system access
         $filePath = "{$porterDir}/{$roleName}.php";
 
-        if (! self::cachedFileExists($filePath)) {
+        if (!self::cachedFileExists($filePath)) {
             throw new InvalidArgumentException("Role '{$roleName}' does not exist in Porter directory '{$porterDir}'.");
         }
 
@@ -132,17 +133,29 @@ final class RoleFactory
         $roleClass = "{$namespace}\\{$roleName}";
 
         // Include the role file if class doesn't exist
-        if (! class_exists($roleClass)) {
+        if (!class_exists($roleClass)) {
             if (file_exists($filePath)) {
                 require_once $filePath;
             }
 
-            if (! class_exists($roleClass)) {
-                throw new InvalidArgumentException("Role class '{$roleClass}' not found after including file '{$filePath}'.");
+            if (!class_exists($roleClass)) {
+                throw new InvalidArgumentException(
+                    "Role class '{$roleClass}' not found after including file '{$filePath}'.",
+                );
             }
         }
 
         return new $roleClass();
+    }
+
+    public static function getRolesLowerThan(RoleContract $roleContract)
+    {
+        return collect(BaseRole::all())->filter(fn(RoleContract $item) => $item->isLowerThan($roleContract));
+    }
+
+    public static function getRolesHigherThan(RoleContract $roleContract)
+    {
+        return collect(BaseRole::all())->filter(fn(RoleContract $item) => $item->isHigherThan($roleContract));
     }
 
     /**
@@ -157,12 +170,12 @@ final class RoleFactory
         $result = [];
 
         // Handle null config values
-        if (! $porterDir || ! $namespace) {
+        if (!$porterDir || !$namespace) {
             return $result;
         }
 
         // Direct file scanning to avoid circular dependency
-        if (! is_dir($porterDir)) {
+        if (!is_dir($porterDir)) {
             return $result;
         }
 
@@ -178,7 +191,7 @@ final class RoleFactory
             $roleClass = "{$namespace}\\{$roleName}";
 
             // Include the role file if class doesn't exist
-            if (! class_exists($roleClass)) {
+            if (!class_exists($roleClass)) {
                 require_once $filePath;
             }
 
@@ -205,7 +218,7 @@ final class RoleFactory
         $porterDir = config('porter.directory');
 
         // Handle null config value
-        if (! $porterDir) {
+        if (!$porterDir) {
             return false;
         }
 
@@ -225,7 +238,7 @@ final class RoleFactory
             return file_exists($filePath);
         }
 
-        if (! isset(self::$fileExistsCache[$filePath])) {
+        if (!isset(self::$fileExistsCache[$filePath])) {
             self::$fileExistsCache[$filePath] = file_exists($filePath);
         }
 
