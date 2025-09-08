@@ -24,7 +24,7 @@ test('BaseRole implements Jsonable interface correctly', function () {
     $json = $editor->toJson();
 
     expect($json)->toBeString();
-    
+
     $decoded = json_decode($json, true);
     expect($decoded)->toBeArray()
         ->and($decoded['name'])->toBe('TestEditor')
@@ -35,11 +35,11 @@ test('BaseRole implements Jsonable interface correctly', function () {
 test('BaseRole JSON serialization with options', function () {
     $admin = new TestAdmin();
     $prettyJson = $admin->toJson(JSON_PRETTY_PRINT);
-    
+
     expect($prettyJson)->toBeString()
         ->and($prettyJson)->toContain("\n")
         ->and($prettyJson)->toContain('    '); // Should have indentation
-    
+
     $decoded = json_decode($prettyJson, true);
     expect($decoded['name'])->toBe('TestAdmin');
 });
@@ -47,10 +47,10 @@ test('BaseRole JSON serialization with options', function () {
 test('role array structure is consistent across different role types', function () {
     $admin = new TestAdmin();
     $editor = new TestEditor();
-    
+
     $adminArray = $admin->toArray();
     $editorArray = $editor->toArray();
-    
+
     expect(array_keys($adminArray))->toBe(array_keys($editorArray))
         ->and($adminArray['name'] !== $editorArray['name'])->toBeTrue()
         ->and($adminArray['level'] !== $editorArray['level'])->toBeTrue();
@@ -58,10 +58,10 @@ test('role array structure is consistent across different role types', function 
 
 test('db_key is included when explicitly requested', function () {
     $admin = new TestAdmin();
-    
+
     $arrayWithoutDbKey = $admin->toArray();
     $arrayWithDbKey = $admin->toArray(includeDbKey: true);
-    
+
     expect(array_key_exists('db_key', $arrayWithoutDbKey))->toBeFalse()
         ->and($arrayWithDbKey)->toHaveKey('db_key')
         ->and($arrayWithDbKey['db_key'])->toBeString()
@@ -70,13 +70,13 @@ test('db_key is included when explicitly requested', function () {
 
 test('JSON serialization respects db_key parameter', function () {
     $admin = new TestAdmin();
-    
+
     $jsonWithoutDbKey = $admin->toJson();
     $jsonWithDbKey = $admin->toJson(includeDbKey: true);
-    
+
     $decodedWithout = json_decode($jsonWithoutDbKey, true);
     $decodedWith = json_decode($jsonWithDbKey, true);
-    
+
     expect(array_key_exists('db_key', $decodedWithout))->toBeFalse()
         ->and($decodedWith)->toHaveKey('db_key')
         ->and($decodedWith['db_key'])->toBeString();

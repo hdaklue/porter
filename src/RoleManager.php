@@ -322,13 +322,46 @@ final class RoleManager implements RoleManagerContract
 
     private function executeRoleCheck(AssignableEntity $user, RoleableEntity $target, string $encryptedKey): bool
     {
-        return Roster::where([
+        // First try exact match (most common case)
+        $exists = Roster::where([
             'assignable_id' => $user->getKey(),
             'assignable_type' => $user->getMorphClass(),
             'roleable_id' => $target->getKey(),
             'roleable_type' => $target->getMorphClass(),
             'role_key' => $encryptedKey,
         ])->exists();
+
+        if ($exists) {
+            return true;
+        }
+
+        // If no exact match found and we're using encrypted storage,
+        // check if there are any plain text role keys that match
+        $storageType = config('porter.security.key_storage', 'encrypted');
+        if ($storageType === 'encrypted') {
+            // Try to find the role that corresponds to this encrypted key
+            try {
+                $role = BaseRole::fromDbKey($encryptedKey);
+                if ($role) {
+                    $plainKey = $role::getPlainKey();
+
+                    // Check if there's a record with the plain text key
+                    $exists = Roster::where([
+                        'assignable_id' => $user->getKey(),
+                        'assignable_type' => $user->getMorphClass(),
+                        'roleable_id' => $target->getKey(),
+                        'roleable_type' => $target->getMorphClass(),
+                        'role_key' => $plainKey,
+                    ])->exists();
+
+                    return $exists;
+                }
+            } catch (\Exception) {
+                // If we can't decrypt the key, fall back to false
+            }
+        }
+
+        return false;
     }
 
     private function generateRoleCheckCacheKey(AssignableEntity $user, RoleableEntity $target, RoleContract $role): string

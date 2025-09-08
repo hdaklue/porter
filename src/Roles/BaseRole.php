@@ -11,7 +11,7 @@ use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-abstract class BaseRole implements RoleContract, Arrayable, Jsonable
+abstract class BaseRole implements Arrayable, Jsonable, RoleContract
 {
     use HasRoleHierarchy;
 
@@ -192,11 +192,22 @@ abstract class BaseRole implements RoleContract, Arrayable, Jsonable
                 default => static::secureDecrypt($encryptedKey),
             };
         } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            // If decryption fails but the key matches a known role, treat as plain text
+            // This handles cases where the storage mode is 'encrypted' but plain text keys exist
+            if (static::isPlainTextRole($encryptedKey)) {
+                return $encryptedKey;
+            }
+
             if (function_exists('report')) {
                 report($e);
             }
             throw new \InvalidArgumentException('Invalid role key - decryption failed', 0, $e);
         } catch (\Exception $e) {
+            // Last resort: check if it's a plain text role name
+            if (static::isPlainTextRole($encryptedKey)) {
+                return $encryptedKey;
+            }
+
             if (function_exists('report')) {
                 report($e);
             }
@@ -222,16 +233,32 @@ abstract class BaseRole implements RoleContract, Arrayable, Jsonable
             return static::findPlainKeyBySaltedHash($saltedKey);
         }
 
-        // Handle legacy Laravel encryption format (for backward compatibility)
-        $decrypted = decrypt($encryptedKey);
-        $saltedKey = base64_decode($decrypted, true);
-
-        if ($saltedKey === false) {
-            throw new \InvalidArgumentException('Invalid encrypted role key format');
+        // Check if it's a plain text role name that matches a known role
+        if (static::isPlainTextRole($encryptedKey)) {
+            return $encryptedKey;
         }
 
-        // We can't reverse the HMAC, so we need to verify by trying all known roles
-        return static::findPlainKeyBySaltedHash($saltedKey);
+        try {
+            // Attempt legacy Laravel encryption format (for backward compatibility)
+            $decrypted = decrypt($encryptedKey);
+            $saltedKey = base64_decode($decrypted, true);
+
+            if ($saltedKey === false) {
+                throw new \InvalidArgumentException('Invalid encrypted role key format');
+            }
+
+            // We can't reverse the HMAC, so we need to verify by trying all known roles
+            return static::findPlainKeyBySaltedHash($saltedKey);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+            // If decryption fails, it might be a plain text role name or corrupted data
+            // Check if it matches any known roles first
+            if (static::isPlainTextRole($encryptedKey)) {
+                return $encryptedKey;
+            }
+
+            // If not a known role, re-throw the original decryption error
+            throw new \InvalidArgumentException("Unable to decrypt role key: '{$encryptedKey}' is not a valid encrypted key or known role name");
+        }
     }
 
     /**
@@ -247,6 +274,23 @@ abstract class BaseRole implements RoleContract, Arrayable, Jsonable
         }
 
         return $encryptedKey;
+    }
+
+    /**
+     * Check if the given string is a plain text role name that matches a known role.
+     */
+    private static function isPlainTextRole(string $possibleRoleName): bool
+    {
+        $roles = static::all();
+
+        foreach ($roles as $role) {
+            $plainKey = $role::getPlainKey();
+            if ($plainKey === $possibleRoleName) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -414,8 +458,8 @@ abstract class BaseRole implements RoleContract, Arrayable, Jsonable
 
     /**
      * Convert role to array representation.
-     * 
-     * @param bool $includeDbKey Whether to include the sensitive db_key in output
+     *
+     * @param  bool  $includeDbKey  Whether to include the sensitive db_key in output
      */
     public function toArray(bool $includeDbKey = false): array
     {
@@ -436,9 +480,9 @@ abstract class BaseRole implements RoleContract, Arrayable, Jsonable
 
     /**
      * Convert role to JSON representation.
-     * 
-     * @param int $options JSON encoding options
-     * @param bool $includeDbKey Whether to include the sensitive db_key in output
+     *
+     * @param  int  $options  JSON encoding options
+     * @param  bool  $includeDbKey  Whether to include the sensitive db_key in output
      */
     public function toJson($options = 0, bool $includeDbKey = false): string
     {
