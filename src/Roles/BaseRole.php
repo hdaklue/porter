@@ -94,44 +94,26 @@ abstract class BaseRole implements Arrayable, Jsonable, RoleContract
             return 'test_'.$plainKey;
         }
 
-        $storage = config('porter.security.key_storage', 'encrypted');
+        $storage = config('porter.security.key_storage', 'hashed');
 
         // Validate storage configuration
-        $allowedStorageTypes = ['encrypted', 'hashed', 'plain'];
+        $allowedStorageTypes = ['hashed', 'plain'];
         if (! in_array($storage, $allowedStorageTypes, true)) {
             throw new \InvalidArgumentException("Invalid storage type: {$storage}. Allowed: ".implode(', ', $allowedStorageTypes));
         }
 
         try {
             return match ($storage) {
-                'encrypted' => static::secureEncrypt($plainKey),
                 'hashed' => static::secureHash($plainKey),
                 'plain' => static::handlePlainStorage($plainKey),
-                default => static::secureEncrypt($plainKey), // Default to most secure option
+                default => static::secureHash($plainKey), // Default to hashed option
             };
         } catch (\Exception $e) {
             // Log encryption failure but don't expose details
             if (function_exists('report')) {
                 report($e);
             }
-            throw new \RuntimeException('Role key encryption failed. Check app key configuration.', 0, $e);
-        }
-    }
-
-    /**
-     * Securely encrypt the role key using Laravel's encryption.
-     */
-    private static function secureEncrypt(string $plainKey): string
-    {
-        try {
-            return encrypt($plainKey);
-        } catch (\RuntimeException $e) {
-            // If encryption fails (e.g., in testing or invalid app key),
-            // fall back to a test-safe format
-            if (app()->environment('testing') || app()->environment() === 'testing') {
-                return 'test_encrypted_' . base64_encode($plainKey);
-            }
-            throw $e;
+            throw new \RuntimeException('Role key processing failed. Check app key configuration.', 0, $e);
         }
     }
 
@@ -142,11 +124,11 @@ abstract class BaseRole implements Arrayable, Jsonable, RoleContract
     private static function secureHash(string $plainKey): string
     {
         $appKey = config('app.key');
-        
+
         if (empty($appKey)) {
             throw new \RuntimeException('Application key not found - required for secure hashing. Run "php artisan key:generate" to generate an app key.');
         }
-        
+
         // Use SHA-256 with app key for consistent, secure hashing
         // This produces exactly 64 characters, fitting well within 128 char limit
         return hash_hmac('sha256', $plainKey, $appKey);
@@ -190,28 +172,17 @@ abstract class BaseRole implements Arrayable, Jsonable, RoleContract
             return $encryptedKey;
         }
 
-        $storage = config('porter.security.key_storage', 'encrypted');
+        $storage = config('porter.security.key_storage', 'hashed');
 
         try {
             return match ($storage) {
-                'encrypted' => static::secureDecrypt($encryptedKey),
                 'hashed' => static::findPlainKeyByHash($encryptedKey),
                 'plain' => static::handlePlainDecryption($encryptedKey),
-                default => static::secureDecrypt($encryptedKey),
+                default => static::findPlainKeyByHash($encryptedKey),
             };
-        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-            // If decryption fails but the key matches a known role, treat as plain text
-            // This handles cases where the storage mode is 'encrypted' but plain text keys exist
-            if (static::isPlainTextRole($encryptedKey)) {
-                return $encryptedKey;
-            }
-
-            if (function_exists('report')) {
-                report($e);
-            }
-            throw new \InvalidArgumentException('Invalid role key - decryption failed', 0, $e);
         } catch (\Exception $e) {
-            // Last resort: check if it's a plain text role name
+            // If hashing verification fails but the key matches a known role, treat as plain text
+            // This handles cases where the storage mode is 'hashed' but plain text keys exist
             if (static::isPlainTextRole($encryptedKey)) {
                 return $encryptedKey;
             }
@@ -219,40 +190,7 @@ abstract class BaseRole implements Arrayable, Jsonable, RoleContract
             if (function_exists('report')) {
                 report($e);
             }
-            throw new \RuntimeException('Role key decryption failed', 0, $e);
-        }
-    }
-
-    /**
-     * Securely decrypt the role key using Laravel's decryption.
-     */
-    private static function secureDecrypt(string $encryptedKey): string
-    {
-        // Check if it's a plain text role name that matches a known role
-        if (static::isPlainTextRole($encryptedKey)) {
-            return $encryptedKey;
-        }
-
-        // Handle test-encrypted format from testing environments
-        if (str_starts_with($encryptedKey, 'test_encrypted_')) {
-            $encoded = substr($encryptedKey, 15); // Remove 'test_encrypted_' prefix
-            $decoded = base64_decode($encoded, true);
-            if ($decoded !== false) {
-                return $decoded;
-            }
-        }
-
-        try {
-            // Use Laravel's decrypt function
-            return decrypt($encryptedKey);
-        } catch (\Illuminate\Contracts\Encryption\DecryptException) {
-            // If decryption fails, check if it matches any known roles as fallback
-            if (static::isPlainTextRole($encryptedKey)) {
-                return $encryptedKey;
-            }
-
-            // If not a known role, re-throw the original decryption error
-            throw new \InvalidArgumentException("Unable to decrypt role key: '{$encryptedKey}' is not a valid encrypted key or known role name");
+            throw new \RuntimeException('Role key processing failed', 0, $e);
         }
     }
 
@@ -283,7 +221,7 @@ abstract class BaseRole implements Arrayable, Jsonable, RoleContract
         // Use constant-time comparison to prevent timing attacks
         foreach ($roles as $role) {
             $plainKey = $role::getPlainKey();
-            
+
             // hash_equals provides constant-time comparison
             if (hash_equals($plainKey, $possibleRoleName)) {
                 $found = true;
@@ -293,7 +231,6 @@ abstract class BaseRole implements Arrayable, Jsonable, RoleContract
 
         return $found;
     }
-
 
     /**
      * Find plain key by trying to match hash (for hashed storage mode).
@@ -310,11 +247,11 @@ abstract class BaseRole implements Arrayable, Jsonable, RoleContract
 
         foreach ($roles as $role) {
             $plainKey = $role::getPlainKey();
-            
+
             // For hashed storage mode, we use HMAC-SHA256 consistently
             // This matches the secureHash() method implementation
             $expectedHash = hash_hmac('sha256', $plainKey, $appKey);
-            
+
             if (hash_equals($expectedHash, $targetHash)) {
                 return $plainKey;
             }

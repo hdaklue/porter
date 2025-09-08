@@ -335,10 +335,10 @@ final class RoleManager implements RoleManagerContract
             return true;
         }
 
-        // If no exact match found and we're using encrypted storage,
+        // If no exact match found and we're using hashed storage,
         // check if there are any plain text role keys that match
-        $storageType = config('porter.security.key_storage', 'encrypted');
-        if ($storageType === 'encrypted') {
+        $storageType = config('porter.security.key_storage', 'hashed');
+        if ($storageType === 'hashed') {
             // Try to find the role that corresponds to this encrypted key
             try {
                 $role = BaseRole::fromDbKey($encryptedKey);

@@ -207,10 +207,10 @@ describe('Security Hardening Tests', function () {
         });
     });
 
-    describe('Encryption Security', function () {
-        it('produces different encrypted values for same role on subsequent calls', function () {
+    describe('Hashing Security', function () {
+        it('produces consistent hashed values for same role on subsequent calls', function () {
             extract(createSecurityFixtures());
-            config(['porter.security.key_storage' => 'encrypted']);
+            config(['porter.security.key_storage' => 'hashed']);
 
             app(RoleManager::class)->assign($user, $project, 'TestAdmin');
             $firstRecord = DB::table('roster')->where([
@@ -235,19 +235,13 @@ describe('Security Hardening Tests', function () {
                 'roleable_type' => get_class($project),
             ])->first();
 
-            // Either they should be different (if using random encryption) OR the test should pass if they're the same (consistent encryption)
-            if ($firstRecord->role_key === $secondRecord->role_key) {
-                // Consistent encryption is also acceptable for security
-                expect($firstRecord->role_key)->toBe($secondRecord->role_key);
-            } else {
-                // Random encryption produces different values
-                expect($firstRecord->role_key)->not()->toBe($secondRecord->role_key);
-            }
+            // Hashed values should be identical for the same role
+            expect($firstRecord->role_key)->toBe($secondRecord->role_key);
         });
 
-        it('prevents role key enumeration through encrypted values', function () {
+        it('prevents role key enumeration through hashed values', function () {
             extract(createSecurityFixtures());
-            config(['porter.security.key_storage' => 'encrypted']);
+            config(['porter.security.key_storage' => 'hashed']);
 
             // Assign same role to different entities
             $project2 = new TestProject();
@@ -264,10 +258,10 @@ describe('Security Hardening Tests', function () {
             // Should have created 2 records
             expect($records)->toHaveCount(2);
 
-            // Each record should have encrypted role keys (not plain text)
+            // Each record should have hashed role keys (not plain text)
             foreach ($records as $record) {
                 expect($record->role_key)->not()->toBe('TestAdmin');
-                expect(strlen($record->role_key))->toBeGreaterThan(10); // Encrypted should be longer
+                expect(strlen($record->role_key))->toBe(64); // SHA-256 hash should be 64 characters
             }
         });
     });

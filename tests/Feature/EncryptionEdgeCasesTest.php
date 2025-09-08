@@ -33,8 +33,8 @@ class EncryptionEdgeCasesTest extends TestCase
 
     public function test_it_handles_plain_text_role_names_when_encryption_configured(): void
     {
-        // Configure system to use encrypted storage
-        config(['porter.security.key_storage' => 'encrypted']);
+        // Configure system to use hashed storage
+        config(['porter.security.key_storage' => 'hashed']);
 
         // First, let's test the BaseRole decryption directly
         $adminRole = TestAdmin::fromDbKey('test_admin');
@@ -74,9 +74,9 @@ class EncryptionEdgeCasesTest extends TestCase
         config(['porter.security.key_storage' => 'plain']);
         $plainKey = TestAdmin::getDbKey(); // Returns 'test_admin'
 
-        // Switch to encrypted storage
-        config(['porter.security.key_storage' => 'encrypted']);
-        $encryptedKey = TestEditor::getDbKey(); // Returns encrypted version
+        // Switch to hashed storage
+        config(['porter.security.key_storage' => 'hashed']);
+        $hashedKey = TestEditor::getDbKey(); // Returns hashed version
 
         // Insert mixed data: one plain text, one properly encrypted
         DB::table('roster')->insert([
@@ -94,7 +94,7 @@ class EncryptionEdgeCasesTest extends TestCase
                 'assignable_id' => $this->user->getKey(),
                 'roleable_type' => TestProject::class,
                 'roleable_id' => $this->project->getKey(),
-                'role_key' => $encryptedKey, // Properly encrypted
+                'role_key' => $hashedKey, // Properly hashed
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -117,8 +117,8 @@ class EncryptionEdgeCasesTest extends TestCase
 
     public function test_it_fails_gracefully_with_invalid_plain_text_role_names(): void
     {
-        // Configure system to use encrypted storage
-        config(['porter.security.key_storage' => 'encrypted']);
+        // Configure system to use hashed storage
+        config(['porter.security.key_storage' => 'hashed']);
 
         // Insert invalid plain text role name
         DB::table('roster')->insert([
@@ -142,16 +142,16 @@ class EncryptionEdgeCasesTest extends TestCase
 
     public function test_it_handles_corrupted_encrypted_data_gracefully(): void
     {
-        // Configure system to use encrypted storage
-        config(['porter.security.key_storage' => 'encrypted']);
+        // Configure system to use hashed storage
+        config(['porter.security.key_storage' => 'hashed']);
 
-        // Insert corrupted/invalid encrypted data
+        // Insert corrupted/invalid hashed data
         DB::table('roster')->insert([
             'assignable_type' => TestUser::class,
             'assignable_id' => $this->user->getKey(),
             'roleable_type' => TestProject::class,
             'roleable_id' => $this->project->getKey(),
-            'role_key' => 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.corrupted.data', // Looks encrypted but isn't
+            'role_key' => 'corrupted_hash_data_that_looks_valid_but_isnt', // Looks hashed but isn't
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -175,13 +175,13 @@ class EncryptionEdgeCasesTest extends TestCase
         // Verify it works with plain config
         expect(app(RoleManager::class)->check($this->user, $this->project, new TestAdmin()))->toBeTrue();
 
-        // Phase 2: Change configuration to encrypted (simulating config update)
-        config(['porter.security.key_storage' => 'encrypted']);
+        // Phase 2: Change configuration to hashed (simulating config update)
+        config(['porter.security.key_storage' => 'hashed']);
 
         // Old data should still work despite config change
         expect(app(RoleManager::class)->check($this->user, $this->project, new TestAdmin()))->toBeTrue();
 
-        // New assignments should use encrypted format
+        // New assignments should use hashed format
         app(RoleManager::class)->assign($this->user, $this->project, new TestEditor());
         expect(app(RoleManager::class)->check($this->user, $this->project, new TestEditor()))->toBeTrue();
 
@@ -214,20 +214,20 @@ class EncryptionEdgeCasesTest extends TestCase
 
     public function test_it_handles_different_encryption_formats_from_different_app_keys(): void
     {
-        // Simulate scenario where app key changed after data was encrypted
-        config(['porter.security.key_storage' => 'encrypted']);
+        // Simulate scenario where app key changed after data was hashed
+        config(['porter.security.key_storage' => 'hashed']);
 
-        // Create encrypted data with current app key
+        // Create hashed data with current app key
         $originalAppKey = config('app.key');
-        $encryptedWithOriginalKey = TestAdmin::getDbKey();
+        $hashedWithOriginalKey = TestAdmin::getDbKey();
 
-        // Insert the encrypted data
+        // Insert the hashed data
         DB::table('roster')->insert([
             'assignable_type' => TestUser::class,
             'assignable_id' => $this->user->getKey(),
             'roleable_type' => TestProject::class,
             'roleable_id' => $this->project->getKey(),
-            'role_key' => $encryptedWithOriginalKey,
+            'role_key' => $hashedWithOriginalKey,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -238,8 +238,8 @@ class EncryptionEdgeCasesTest extends TestCase
         // Change app key (simulating key rotation)
         config(['app.key' => 'base64:'.base64_encode('different16charkey')]);
 
-        // Old encrypted data should fail gracefully, but if it matches a plain text role name
-        // after "decryption" fails, it should still work as fallback
+        // Old hashed data should fail gracefully, but if it matches a plain text role name
+        // after hash verification fails, it should still work as fallback
         // (This specific test might fail depending on exact implementation, but system shouldn't crash)
         $result = app(RoleManager::class)->check($this->user, $this->project, new TestAdmin());
 
@@ -251,8 +251,8 @@ class EncryptionEdgeCasesTest extends TestCase
     {
         parent::defineEnvironment($app);
 
-        // Override test configuration to use encrypted storage by default
+        // Override test configuration to use hashed storage by default
         // This ensures we're testing the real-world scenario
-        $app['config']->set('porter.security.key_storage', 'encrypted');
+        $app['config']->set('porter.security.key_storage', 'hashed');
     }
 }
