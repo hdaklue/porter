@@ -100,7 +100,7 @@ Common question: *"Why not use traditional database-based access control?"*
 
 ## Roadmap & Community Input
 
-As a **new package**, your feedback directly shapes Porter's future! I am actively seeking community input and suggestions to prioritize features and ensure Porter evolves into the most valuable tool for your Laravel app.
+As a **new package** your feedback directly shapes Porter's future! I am actively seeking community input and suggestions to prioritize features and ensure Porter evolves into the most valuable tool for your Laravel app.
 
 ### 🎯 **Potential Features (Vote & Discuss!)**
 
