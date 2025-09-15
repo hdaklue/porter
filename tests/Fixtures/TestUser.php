@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace Hdaklue\Porter\Tests\Fixtures;
 
 use Hdaklue\Porter\Concerns\CanBeAssignedToEntity;
+use Hdaklue\Porter\Multitenancy\Concerns\HasPorterTenant;
 use Hdaklue\Porter\Contracts\AssignableEntity;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class TestUser extends Authenticatable implements AssignableEntity
 {
     use CanBeAssignedToEntity;
+    use HasPorterTenant;
 
     protected $table = 'test_users';
 
-    protected $fillable = ['name', 'email'];
+    protected $fillable = ['name', 'email', 'current_tenant_id'];
 
     protected $casts = [
         'id' => 'int',
@@ -24,6 +26,14 @@ class TestUser extends Authenticatable implements AssignableEntity
     {
         // Test implementation - no action needed
         return true;
+    }
+
+    /**
+     * Get current tenant key for Porter role scoping (override trait method)
+     */
+    public function getCurrentTenantKey(): ?string
+    {
+        return $this->current_tenant_id;
     }
 
     /**

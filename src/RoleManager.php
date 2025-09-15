@@ -12,6 +12,8 @@ use Hdaklue\Porter\Contracts\RoleManagerContract;
 use Hdaklue\Porter\Events\RoleAssigned;
 use Hdaklue\Porter\Events\RoleChanged;
 use Hdaklue\Porter\Events\RoleRemoved;
+use Hdaklue\Porter\Multitenancy\Contracts\PorterTenantContract;
+use Hdaklue\Porter\Multitenancy\Exceptions\TenantIntegrityException;
 use Hdaklue\Porter\Models\Roster;
 use Hdaklue\Porter\Roles\BaseRole;
 use Illuminate\Support\Collection;
@@ -23,6 +25,9 @@ final class RoleManager implements RoleManagerContract
 {
     public function assign(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): void
     {
+        // Check tenant integrity if multitenancy is enabled
+        $this->validateTenantIntegrity($user, $target);
+
         DB::transaction(function () use ($user, $target, $role) {
             $roleInstance = $this->resolveRole($role);
 
@@ -33,14 +38,25 @@ final class RoleManager implements RoleManagerContract
             }
 
             $encryptedKey = $roleInstance::getDbKey();
+            
+            // Determine tenant_id for this assignment
+            $tenantId = $this->resolveTenantIdForAssignment($user, $target);
 
-            $assignment = Roster::firstOrCreate([
+            $assignmentData = [
                 'assignable_type' => $user->getMorphClass(),
                 'assignable_id' => $user->getKey(),
                 'roleable_type' => $target->getMorphClass(),
                 'roleable_id' => $target->getKey(),
                 'role_key' => $encryptedKey,
-            ]);
+            ];
+
+            // Add tenant_id if multitenancy is enabled
+            if (config('porter.multitenancy.enabled', false) && $tenantId) {
+                $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
+                $assignmentData[$tenantColumn] = $tenantId;
+            }
+
+            $assignment = Roster::firstOrCreate($assignmentData);
 
             if ($assignment->wasRecentlyCreated) {
                 RoleAssigned::dispatch($user, $target, $roleInstance);
@@ -367,15 +383,17 @@ final class RoleManager implements RoleManagerContract
     private function generateRoleCheckCacheKey(AssignableEntity $user, RoleableEntity $target, RoleContract $role): string
     {
         $prefix = config('porter.cache.key_prefix', 'porter');
+        $tenantKey = $this->getTenantCacheKey($user, $target);
 
-        return "{$prefix}:role_check:{$user->getMorphClass()}:{$user->getKey()}:{$target->getMorphClass()}:{$target->getKey()}:{$role->getName()}";
+        return "{$prefix}:role_check{$tenantKey}:{$user->getMorphClass()}:{$user->getKey()}:{$target->getMorphClass()}:{$target->getKey()}:{$role->getName()}";
     }
 
     private function generateRoleCheckCacheKeyByEncryptedKey(AssignableEntity $user, RoleableEntity $target, string $encryptedKey): string
     {
         $prefix = config('porter.cache.key_prefix', 'porter');
+        $tenantKey = $this->getTenantCacheKey($user, $target);
 
-        return "{$prefix}:role_check_key:{$user->getMorphClass()}:{$user->getKey()}:{$target->getMorphClass()}:{$target->getKey()}:".hash('sha256', $encryptedKey);
+        return "{$prefix}:role_check_key{$tenantKey}:{$user->getMorphClass()}:{$user->getKey()}:{$target->getMorphClass()}:{$target->getKey()}:".hash('sha256', $encryptedKey);
     }
 
     private function clearAssignableEntityCache(AssignableEntity $user, string $type): void
@@ -451,5 +469,95 @@ final class RoleManager implements RoleManagerContract
         } catch (InvalidArgumentException $e) {
             return BaseRole::make($role);
         }
+    }
+
+    /**
+     * Validate tenant integrity between assignable and roleable entities.
+     * Handles special case when roleable entity IS the tenant (self-reference).
+     */
+    private function validateTenantIntegrity(AssignableEntity $user, RoleableEntity $target): void
+    {
+        if (!config('porter.multitenancy.enabled', false)) {
+            return;
+        }
+
+        // Special handling when roleable IS the tenant entity
+        if ($target instanceof PorterTenantContract) {
+            $assignableTenant = method_exists($user, 'getCurrentTenantKey') ? $user->getCurrentTenantKey() : null;
+            $targetTenantKey = $target->getPorterTenantKey(); // Self-reference
+            
+            // Assignable must belong to the same tenant as the target tenant entity
+            if ($assignableTenant && $assignableTenant !== $targetTenantKey) {
+                throw TenantIntegrityException::mismatch($assignableTenant, $targetTenantKey);
+            }
+            
+            return; // Skip normal validation for tenant entities
+        }
+
+        // Normal validation for non-tenant roleables
+        $assignableTenant = method_exists($user, 'getCurrentTenantKey') ? $user->getCurrentTenantKey() : null;
+        $roleableTenant = method_exists($target, 'getPorterTenantKey') ? $target->getPorterTenantKey() : null;
+
+        // Both must have tenant context or both must not have it
+        if ($assignableTenant === null && $roleableTenant !== null) {
+            throw TenantIntegrityException::assignableWithoutTenant();
+        }
+
+        if ($assignableTenant !== null && $roleableTenant === null) {
+            throw TenantIntegrityException::roleableWithoutTenant();
+        }
+
+        // If both have tenant context, they must match
+        if ($assignableTenant !== null && $roleableTenant !== null && $assignableTenant !== $roleableTenant) {
+            throw TenantIntegrityException::mismatch($assignableTenant, $roleableTenant);
+        }
+    }
+
+    /**
+     * Get tenant cache key segment for cache scoping.
+     */
+    private function getTenantCacheKey(AssignableEntity $user, RoleableEntity $target): string
+    {
+        if (!config('porter.multitenancy.enabled', false) || !config('porter.multitenancy.cache_per_tenant', true)) {
+            return '';
+        }
+
+        $tenantKey = method_exists($user, 'getCurrentTenantKey') ? $user->getCurrentTenantKey() : null;
+        
+        return $tenantKey ? ":t:{$tenantKey}" : '';
+    }
+
+    /**
+     * Resolve the tenant ID for a role assignment.
+     * Handles both regular entities and tenant entities as roleables.
+     */
+    private function resolveTenantIdForAssignment(AssignableEntity $user, RoleableEntity $target): ?string
+    {
+        if (!config('porter.multitenancy.enabled', false)) {
+            return null;
+        }
+
+        // If roleable IS the tenant entity, use its key as tenant_id
+        if ($target instanceof PorterTenantContract) {
+            return $target->getPorterTenantKey();
+        }
+
+        // For regular roleables, get tenant from assignable entity
+        return method_exists($user, 'getCurrentTenantKey') ? $user->getCurrentTenantKey() : null;
+    }
+
+    /**
+     * Destroy all role assignments for a specific tenant.
+     * Cache will self-heal as stale entries expire and new queries return correct results.
+     */
+    public function destroyTenantRoles(string $tenantKey): int
+    {
+        if (!config('porter.multitenancy.enabled', false)) {
+            throw new DomainException('Multitenancy is not enabled. Cannot destroy tenant roles.');
+        }
+
+        $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
+        
+        return Roster::where($tenantColumn, $tenantKey)->delete();
     }
 }

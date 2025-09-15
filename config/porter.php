@@ -129,4 +129,51 @@ return [
         'participants_ttl' => env('PORTER_CACHE_PARTICIPANTS_TTL', 3600), // 1 hour
         'assigned_entities_ttl' => env('PORTER_CACHE_ASSIGNED_ENTITIES_TTL', 3600), // 1 hour
     ],
+
+    /*
+     |--------------------------------------------------------------------------
+     | Multitenancy Configuration
+     |--------------------------------------------------------------------------
+     |
+     | Configure optional multitenancy support. When enabled, role assignments
+     | will be scoped to tenants automatically.
+     |
+     */
+    'multitenancy' => [
+        /*
+         | Enable multitenancy support. When disabled, all multitenancy
+         | features are ignored and Porter behaves as single-tenant.
+         */
+        'enabled' => env('PORTER_MULTITENANCY_ENABLED', false),
+
+        /*
+         | The data type for tenant keys. This determines the column type in the roster table.
+         | Supported types:
+         | - 'integer': For auto-increment or numeric tenant IDs
+         | - 'uuid': For UUID v4 tenant identifiers  
+         | - 'ulid': For ULID tenant identifiers
+         | - 'string': For custom string-based tenant keys
+         */
+        'tenant_key_type' => env('PORTER_TENANT_KEY_TYPE', 'ulid'),
+
+        /*
+         | The column name to use for tenant key in the roster table.
+         | This allows customization of the column name if needed.
+         */
+        'tenant_column' => env('PORTER_TENANT_COLUMN', 'tenant_id'),
+
+
+        /*
+         | Automatically scope all queries by current tenant. When true,
+         | Porter will add tenant scoping to all roster queries automatically.
+         | When false, you must manually scope queries using forTenant() method.
+         */
+        'auto_scope' => env('PORTER_AUTO_SCOPE', true),
+
+        /*
+         | Include tenant context in cache keys. When enabled, cached role
+         | checks are scoped per tenant, preventing cross-tenant cache pollution.
+         */
+        'cache_per_tenant' => env('PORTER_CACHE_PER_TENANT', true),
+    ],
 ];

@@ -7,6 +7,7 @@ namespace Hdaklue\Porter\Models;
 use Eloquent;
 use Exception;
 use Hdaklue\Porter\Casts\RoleCast;
+use Hdaklue\Porter\Multitenancy\Concerns\TenantAware;
 use Hdaklue\Porter\Contracts\RoleContract;
 use Hdaklue\Porter\RoleFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -48,6 +49,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 final class Roster extends Model
 {
+    use TenantAware;
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -56,6 +59,7 @@ final class Roster extends Model
         'roleable_type',
         'roleable_id',
         'role_key',
+        'tenant_id',
     ];
 
     protected $casts = [

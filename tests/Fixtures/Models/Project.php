@@ -2,18 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Hdaklue\Porter\Tests\Fixtures;
+namespace Tests\Fixtures\Models;
 
-use Hdaklue\Porter\Multitenancy\Concerns\HasPorterTenantScope;
+use Hdaklue\Porter\Concerns\HasPorterTenantScope;
 use Hdaklue\Porter\Concerns\ReceivesRoleAssignments;
 use Hdaklue\Porter\Contracts\RoleableEntity;
-use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class TestProject extends Model implements Arrayable, RoleableEntity
+class Project extends Model implements RoleableEntity
 {
     use ReceivesRoleAssignments;
     use HasPorterTenantScope;
+    use HasFactory;
 
     protected $table = 'test_projects';
 
@@ -23,21 +24,19 @@ class TestProject extends Model implements Arrayable, RoleableEntity
         'id' => 'int',
     ];
 
-    public function toArray()
-    {
-        return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'description' => $this->description,
-            'tenant_id' => $this->tenant_id,
-        ];
-    }
-
     /**
      * Get the tenant key that this project belongs to
      */
     public function getPorterTenantKey(): ?string
     {
         return $this->tenant_id;
+    }
+
+    /**
+     * Factory definition
+     */
+    protected static function newFactory()
+    {
+        return \Tests\Fixtures\Factories\ProjectFactory::new();
     }
 }

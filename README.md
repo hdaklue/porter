@@ -29,6 +29,7 @@ Porter is seeking a co-maintainer to create video demos and tutorials showcasing
 - [Suggested Usage](#suggested-usage) • **[Complete Guide →](docs/suggested-usage.md)**
 - [Installation](#installation)
 - [Advanced Features](#advanced-features)
+- [Multitenancy](#multitenancy) • **[Complete Guide →](docs/multitenancy.md)**
 - [Cross-Database Architecture](#cross-database-architecture)
 - [Configuration](#configuration)
 - [Laravel Integration](#laravel-integration) • **[Complete Guide →](docs/laravel-integration.md)**
@@ -94,7 +95,7 @@ Common question: *"Why not use traditional database-based access control?"*
 - **Distributed systems** where roles span multiple data sources
 - **Complex enterprise environments** with segregated database strategies
 
-**Note:** For true multi-tenancy (shared codebase, tenant-specific roles), consider database-heavy packages. Porter's class-based approach is optimized for applications where access control reflects business logic, not tenant-variable data.
+**✅ Multitenancy Support:** Porter now includes optional multitenancy features with tenant-aware role assignments, tenant integrity validation, and support for tenant entities as roleables - perfect for SaaS applications and enterprise multi-tenant architectures.
 
 --- 
 
@@ -158,6 +159,7 @@ Contributors who provide valuable feedback will be:
 - 🚀 **Ultra-Minimal Architecture**: Just 3 core components for assignment management
 - 🔥 **Blazing Performance**: Optimized for speed with minimal database interaction, built-in caching, and intelligent cross-database query optimization
 - 🌐 **Cross-Database Support**: Enterprise-grade multi-database architecture with automatic connection detection
+- 🏢 **Multitenancy Support**: Optional tenant-aware role assignments with integrity validation and self-reference support
 - 🔒 **Enhanced Security**: Assignment keys encrypted with Laravel's built-in encryption
 - 🎯 **Automatic RoleCast**: Seamless conversion between database keys and type-safe RoleContract instances
 - 🏢 **Cross-Database Intelligence**: Automatic detection and seamless handling of multi-database architectures
@@ -434,6 +436,43 @@ The install command:
 ✅ Optionally creates 6 default role classes (Admin, Manager, Editor, Contributor, Viewer, Guest)
 ✅ Provides contextual next-step guidance
 ✅ Blocks installation in production environment for safety
+
+--- 
+
+## Multitenancy
+
+Porter includes **optional multitenancy support** for SaaS applications and enterprise multi-tenant architectures. When enabled, Porter provides tenant-aware role assignments with integrity validation and flexible tenant entity patterns.
+
+### Key Features
+- 🏢 **Optional Configuration**: Enable multitenancy via config when needed
+- 🔒 **Tenant Integrity**: Automatic validation prevents cross-tenant role assignments
+- 🔄 **Self-Reference Support**: Tenant entities can be roleables (users can have roles on their own tenant)
+- 🗂️ **Flexible Tenant Keys**: Support for various tenant identifier types (string, uuid, ulid, integer)
+- ⚡ **Cache Isolation**: Tenant-specific caching for optimal performance
+- 🧼 **Bulk Operations**: Efficient tenant cleanup with `destroyTenantRoles` method
+
+### Quick Example
+```php
+// Enable in config
+'multitenancy' => [
+    'enabled' => true,
+    'tenant_key_type' => 'string',
+    'auto_scope' => true,
+],
+
+// Tenant-aware assignments
+Porter::assign($user, $project, 'admin'); // Validates tenant context automatically
+
+// Self-reference: Tenant as roleable
+Porter::assign($user, $tenant, 'owner'); // User owns their tenant
+
+// Bulk tenant cleanup
+Porter::destroyTenantRoles('tenant_123'); // Removes all roles for tenant
+```
+
+**🔗 [Complete Multitenancy Guide →](docs/multitenancy.md)**
+
+Learn about configuration, tenant patterns, validation rules, self-reference scenarios, and advanced multitenancy architectures.
 
 --- 
 
