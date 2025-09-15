@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace Hdaklue\Porter\Tests\Fixtures;
 
-use Hdaklue\Porter\Multitenancy\Concerns\HasPorterTenantScope;
 use Hdaklue\Porter\Concerns\ReceivesRoleAssignments;
 use Hdaklue\Porter\Contracts\RoleableEntity;
+use Hdaklue\Porter\Multitenancy\Contracts\PorterRoleableContract;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 
-class TestProject extends Model implements Arrayable, RoleableEntity
+class TestProject extends Model implements Arrayable, RoleableEntity, PorterRoleableContract
 {
     use ReceivesRoleAssignments;
-    use HasPorterTenantScope;
 
     protected $table = 'test_projects';
 

@@ -62,18 +62,17 @@ Porter supports two types of tenant-aware entities:
 1. **Assignable Entities** (those who receive roles)
 2. **Roleable Entities** (those on which roles are assigned)
 
-### Tenant Traits
+### Tenant Contracts
 
-Porter provides specialized traits for different tenant scenarios:
+Porter provides specialized contracts for different tenant scenarios:
 
 #### For Assignable Entities (Users, Teams)
 ```php
-use Hdaklue\Porter\Multitenancy\Concerns\HasPorterTenant;
+use Hdaklue\Porter\Multitenancy\Contracts\PorterAssignableContract;
 
-class User extends Authenticatable implements AssignableEntity
+class User extends Authenticatable implements AssignableEntity, PorterAssignableContract
 {
     use CanBeAssignedToEntity;
-    use HasPorterTenant;
 
     // Implement tenant key resolution
     public function getCurrentTenantKey(): ?string
@@ -85,12 +84,11 @@ class User extends Authenticatable implements AssignableEntity
 
 #### For Roleable Entities (Projects, Organizations)
 ```php
-use Hdaklue\Porter\Multitenancy\Concerns\HasPorterTenantScope;
+use Hdaklue\Porter\Multitenancy\Contracts\PorterRoleableContract;
 
-class Project extends Model implements RoleableEntity
+class Project extends Model implements RoleableEntity, PorterRoleableContract
 {
     use ReceivesRoleAssignments;
-    use HasPorterTenantScope;
 
     // Implement tenant key resolution
     public function getPorterTenantKey(): ?string

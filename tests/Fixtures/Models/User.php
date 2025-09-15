@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Tests\Fixtures\Models;
 
 use Hdaklue\Porter\Concerns\CanBeAssignedToEntity;
-use Hdaklue\Porter\Concerns\HasPorterTenant;
 use Hdaklue\Porter\Contracts\AssignableEntity;
+use Hdaklue\Porter\Multitenancy\Contracts\PorterAssignableContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
-class User extends Authenticatable implements AssignableEntity
+class User extends Authenticatable implements AssignableEntity, PorterAssignableContract
 {
     use CanBeAssignedToEntity;
-    use HasPorterTenant;
     use HasFactory;
 
     protected $table = 'test_users';

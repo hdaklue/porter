@@ -12,6 +12,8 @@ use Hdaklue\Porter\Contracts\RoleManagerContract;
 use Hdaklue\Porter\Events\RoleAssigned;
 use Hdaklue\Porter\Events\RoleChanged;
 use Hdaklue\Porter\Events\RoleRemoved;
+use Hdaklue\Porter\Multitenancy\Contracts\PorterAssignableContract;
+use Hdaklue\Porter\Multitenancy\Contracts\PorterRoleableContract;
 use Hdaklue\Porter\Multitenancy\Contracts\PorterTenantContract;
 use Hdaklue\Porter\Multitenancy\Exceptions\TenantIntegrityException;
 use Hdaklue\Porter\Models\Roster;
@@ -483,7 +485,7 @@ final class RoleManager implements RoleManagerContract
 
         // Special handling when roleable IS the tenant entity
         if ($target instanceof PorterTenantContract) {
-            $assignableTenant = method_exists($user, 'getCurrentTenantKey') ? $user->getCurrentTenantKey() : null;
+            $assignableTenant = $user instanceof PorterAssignableContract ? $user->getCurrentTenantKey() : null;
             $targetTenantKey = $target->getPorterTenantKey(); // Self-reference
             
             // Assignable must belong to the same tenant as the target tenant entity
@@ -500,8 +502,8 @@ final class RoleManager implements RoleManagerContract
         }
 
         // Normal validation for non-tenant roleables
-        $assignableTenant = method_exists($user, 'getCurrentTenantKey') ? $user->getCurrentTenantKey() : null;
-        $roleableTenant = method_exists($target, 'getPorterTenantKey') ? $target->getPorterTenantKey() : null;
+        $assignableTenant = $user instanceof PorterAssignableContract ? $user->getCurrentTenantKey() : null;
+        $roleableTenant = $target instanceof PorterRoleableContract ? $target->getPorterTenantKey() : null;
 
         // Both must have tenant context or both must not have it
         if ($assignableTenant === null && $roleableTenant !== null) {
@@ -527,7 +529,7 @@ final class RoleManager implements RoleManagerContract
             return '';
         }
 
-        $tenantKey = method_exists($user, 'getCurrentTenantKey') ? $user->getCurrentTenantKey() : null;
+        $tenantKey = $user instanceof PorterAssignableContract ? $user->getCurrentTenantKey() : null;
         
         return $tenantKey ? ":t:{$tenantKey}" : '';
     }
@@ -548,7 +550,7 @@ final class RoleManager implements RoleManagerContract
         }
 
         // For regular roleables, get tenant from assignable entity
-        return method_exists($user, 'getCurrentTenantKey') ? $user->getCurrentTenantKey() : null;
+        return $user instanceof PorterAssignableContract ? $user->getCurrentTenantKey() : null;
     }
 
     /**

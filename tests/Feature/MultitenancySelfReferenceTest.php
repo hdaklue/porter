@@ -6,6 +6,7 @@ use Hdaklue\Porter\RoleManager;
 use Hdaklue\Porter\Tests\Fixtures\TestUser;
 use Hdaklue\Porter\Multitenancy\Concerns\IsPorterTenant;
 use Hdaklue\Porter\Multitenancy\Contracts\PorterTenantContract;
+use Hdaklue\Porter\Multitenancy\Contracts\PorterAssignableContract;
 use Hdaklue\Porter\Concerns\ReceivesRoleAssignments;
 use Hdaklue\Porter\Contracts\RoleableEntity;
 use Illuminate\Database\Eloquent\Model;
