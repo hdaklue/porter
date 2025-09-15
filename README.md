@@ -445,6 +445,7 @@ Porter includes **optional multitenancy support** for SaaS applications and ente
 
 ### Key Features
 - 🏢 **Optional Configuration**: Enable multitenancy via config when needed
+- 📋 **Contract-Based Design**: Clear interfaces requiring explicit implementation (no confusing default behaviors)
 - 🔒 **Tenant Integrity**: Automatic validation prevents cross-tenant role assignments
 - 🔄 **Self-Reference Support**: Tenant entities can be roleables (users can have roles on their own tenant)
 - 🗂️ **Flexible Tenant Keys**: Support for various tenant identifier types (string, uuid, ulid, integer)
@@ -453,20 +454,27 @@ Porter includes **optional multitenancy support** for SaaS applications and ente
 
 ### Quick Example
 ```php
-// Enable in config
+// 1. Enable in config
 'multitenancy' => [
     'enabled' => true,
     'tenant_key_type' => 'string',
     'auto_scope' => true,
 ],
 
-// Tenant-aware assignments
+// 2. Implement contracts in your models
+class User extends Model implements AssignableEntity, PorterAssignableContract {
+    public function getCurrentTenantKey(): ?string {
+        return $this->tenant_id;
+    }
+}
+
+// 3. Tenant-aware assignments work automatically
 Porter::assign($user, $project, 'admin'); // Validates tenant context automatically
 
-// Self-reference: Tenant as roleable
+// 4. Self-reference: Tenant as roleable
 Porter::assign($user, $tenant, 'owner'); // User owns their tenant
 
-// Bulk tenant cleanup
+// 5. Bulk tenant cleanup
 Porter::destroyTenantRoles('tenant_123'); // Removes all roles for tenant
 ```
 
