@@ -6,7 +6,7 @@ namespace Hdaklue\Porter\Multitenancy\Concerns;
 
 use Illuminate\Database\Eloquent\Builder;
 
-trait TenantAware
+trait PorterTenantAware
 {
     /**
      * Scope queries to a specific tenant.

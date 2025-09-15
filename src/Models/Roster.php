@@ -7,7 +7,7 @@ namespace Hdaklue\Porter\Models;
 use Eloquent;
 use Exception;
 use Hdaklue\Porter\Casts\RoleCast;
-use Hdaklue\Porter\Multitenancy\Concerns\TenantAware;
+use Hdaklue\Porter\Multitenancy\Concerns\PorterTenantAware;
 use Hdaklue\Porter\Contracts\RoleContract;
 use Hdaklue\Porter\RoleFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -49,7 +49,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 final class Roster extends Model
 {
-    use TenantAware;
+    use PorterTenantAware;
 
     public $timestamps = true;
 

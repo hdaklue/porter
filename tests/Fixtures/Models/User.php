@@ -42,6 +42,14 @@ class User extends Authenticatable implements AssignableEntity, PorterAssignable
     }
 
     /**
+     * Get the current tenant key for this assignable entity.
+     */
+    public function getPorterCurrentTenantKey(): ?string
+    {
+        return $this->currentTenant ?? $this->current_tenant_id;
+    }
+
+    /**
      * Set current tenant (for testing)
      */
     public function setCurrentTenant(?string $tenantId): self

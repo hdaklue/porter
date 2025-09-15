@@ -439,7 +439,7 @@ Determines the tenant context for a role assignment:
 
 ### Query Scopes
 
-#### TenantAware Trait Scopes
+#### PorterTenantAware Trait Scopes
 
 ```php
 // Scope to specific tenant

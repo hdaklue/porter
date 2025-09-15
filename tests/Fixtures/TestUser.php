@@ -36,6 +36,14 @@ class TestUser extends Authenticatable implements AssignableEntity, PorterAssign
     }
 
     /**
+     * Get the current tenant key for this assignable entity.
+     */
+    public function getPorterCurrentTenantKey(): ?string
+    {
+        return $this->current_tenant_id;
+    }
+
+    /**
      * Helper method for tests - checks if user has role on entity
      */
     public function hasRoleOn($entity, $roleName): bool
