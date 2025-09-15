@@ -87,21 +87,12 @@ final class RoleManager implements RoleManagerContract
 
             $newEncryptedKey = $newRole::getDbKey();
 
-            $query = Roster::where([
+            $model = Roster::where([
                 'assignable_type' => $user->getMorphClass(),
                 'assignable_id' => $user->getKey(),
                 'roleable_id' => $target->getKey(),
                 'roleable_type' => $target->getMorphClass(),
-            ]);
-
-            // Add tenant scoping if multitenancy is enabled
-            if (config('porter.multitenancy.enabled', false)) {
-                $tenantId = $this->resolveTenantIdForAssignment($user, $target);
-                $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-                $query->where($tenantColumn, $tenantId);
-            }
-
-            $model = $query->lockForUpdate()->first();
+            ])->lockForUpdate()->first();
 
             if ($model) {
                 $oldEncryptedKey = $model->getRoleDBKey();
@@ -132,124 +123,68 @@ final class RoleManager implements RoleManagerContract
         $roleInstance = $this->resolveRole($role);
         $encryptedKey = $roleInstance::getDbKey();
 
-        $query = Roster::where([
+        return Roster::where([
             'roleable_type' => $target->getMorphClass(),
             'roleable_id' => $target->getKey(),
             'role_key' => $encryptedKey,
-        ]);
-
-        // Add tenant scoping if multitenancy is enabled and auto_scope is true
-        if (config('porter.multitenancy.enabled', false) && config('porter.multitenancy.auto_scope', true)) {
-            // For this method, we don't have a specific user context, so we use the tenant scope if available
-            if (method_exists($target, 'getPorterTenantKey')) {
-                $tenantId = $target->getPorterTenantKey();
-                $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-                $query->where($tenantColumn, $tenantId);
-            }
-        }
-
-        return $query->with('assignable')->get()->pluck('assignable');
+        ])->with('assignable')->get()->pluck('assignable');
     }
 
     public function getAssignedEntitiesByKeysByType(AssignableEntity $target, array $keys, string $type): Collection
     {
-        $query = Roster::query()->where([
+        return Roster::query()->where([
             'assignable_type' => $target->getMorphClass(),
             'assignable_id' => $target->getKey(),
             'roleable_type' => $type,
-        ])->whereIn('roleable_id', $keys);
-
-        // Add tenant scoping if multitenancy is enabled and auto_scope is true
-        if (config('porter.multitenancy.enabled', false) && config('porter.multitenancy.auto_scope', true)) {
-            if (method_exists($target, 'getCurrentTenantKey')) {
-                $tenantId = $target->getCurrentTenantKey();
-                $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-                $query->where($tenantColumn, $tenantId);
-            }
-        }
-
-        return $query->with('roleable')->get()->pluck('roleable');
+        ])
+            ->with('roleable')
+            ->whereIn('roleable_id', $keys)
+            ->get()
+            ->pluck('roleable');
     }
 
     public function getAssignedEntitiesByType(AssignableEntity $entity, string $type): Collection
     {
         if (! $this->shouldCache()) {
-            $query = Roster::where([
+            return Roster::where([
                 'roleable_type' => $type,
                 'assignable_type' => $entity->getMorphClass(),
                 'assignable_id' => $entity->getKey(),
-            ]);
-
-            // Add tenant scoping if multitenancy is enabled and auto_scope is true
-            if (config('porter.multitenancy.enabled', false) && config('porter.multitenancy.auto_scope', true)) {
-                if (method_exists($entity, 'getCurrentTenantKey')) {
-                    $tenantId = $entity->getCurrentTenantKey();
-                    $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-                    $query->where($tenantColumn, $tenantId);
-                }
-            }
-
-            return $query->with('roleable')->get()->pluck('roleable');
+            ])
+                ->with('roleable')
+                ->get()->pluck('roleable');
         }
 
         $cacheKey = $this->generateAssignedEntitiesCacheKey($entity, $type);
 
-        return Cache::remember($cacheKey, $this->getCacheTtl('assigned_entities'), function () use ($entity, $type) {
-            $query = Roster::where([
-                'roleable_type' => $type,
-                'assignable_type' => $entity->getMorphClass(),
-                'assignable_id' => $entity->getKey(),
-            ]);
-
-            // Add tenant scoping if multitenancy is enabled and auto_scope is true
-            if (config('porter.multitenancy.enabled', false) && config('porter.multitenancy.auto_scope', true)) {
-                if (method_exists($entity, 'getCurrentTenantKey')) {
-                    $tenantId = $entity->getCurrentTenantKey();
-                    $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-                    $query->where($tenantColumn, $tenantId);
-                }
-            }
-
-            return $query->with('roleable')->get()->pluck('roleable');
-        });
+        return Cache::remember($cacheKey, $this->getCacheTtl('assigned_entities'), fn () => Roster::where([
+            'roleable_type' => $type,
+            'assignable_type' => $entity->getMorphClass(),
+            'assignable_id' => $entity->getKey(),
+        ])
+            ->with('roleable')
+            ->get()
+            ->pluck('roleable'));
     }
 
     public function getParticipantsWithRoles(RoleableEntity $target): Collection
     {
         if (! $this->shouldCache()) {
-            $query = Roster::where([
+            return Roster::where([
                 'roleable_id' => $target->getKey(),
                 'roleable_type' => $target->getMorphClass(),
-            ]);
-
-            // Add tenant scoping if multitenancy is enabled and auto_scope is true
-            if (config('porter.multitenancy.enabled', false) && config('porter.multitenancy.auto_scope', true)) {
-                if (method_exists($target, 'getPorterTenantKey')) {
-                    $tenantId = $target->getPorterTenantKey();
-                    $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-                    $query->where($tenantColumn, $tenantId);
-                }
-            }
-
-            return $query->with('assignable')->get();
+            ])
+                ->with('assignable')
+                ->get();
         }
 
         return Cache::remember($this->generateParticipantsCacheKey($target), $this->getCacheTtl('participants'), function () use ($target) {
-            $query = Roster::where([
+            return Roster::where([
                 'roleable_id' => $target->getKey(),
                 'roleable_type' => $target->getMorphClass(),
-            ]);
-
-            // Add tenant scoping if multitenancy is enabled and auto_scope is true
-            if (config('porter.multitenancy.enabled', false) && config('porter.multitenancy.auto_scope', true)) {
-                if (method_exists($target, 'getPorterTenantKey')) {
-                    $tenantId = $target->getPorterTenantKey();
-                    $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-                    $query->where($tenantColumn, $tenantId);
-                }
-            }
-
-            return $query->with('assignable')->get();
+            ])
+                ->with('assignable')
+                ->get();
         });
     }
 
@@ -274,40 +209,22 @@ final class RoleManager implements RoleManagerContract
 
     public function hasAnyRoleOn(AssignableEntity $user, RoleableEntity $target): bool
     {
-        $query = Roster::where([
+        return Roster::where([
             'assignable_id' => $user->getKey(),
             'assignable_type' => $user->getMorphClass(),
             'roleable_id' => $target->getKey(),
             'roleable_type' => $target->getMorphClass(),
-        ]);
-
-        // Add tenant scoping if multitenancy is enabled
-        if (config('porter.multitenancy.enabled', false)) {
-            $tenantId = $this->resolveTenantIdForAssignment($user, $target);
-            $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-            $query->where($tenantColumn, $tenantId);
-        }
-
-        return $query->exists();
+        ])->exists();
     }
 
     public function getRoleOn(AssignableEntity $user, RoleableEntity $target): ?RoleContract
     {
-        $query = Roster::where([
+        $roster = Roster::where([
             'assignable_id' => $user->getKey(),
             'assignable_type' => $user->getMorphClass(),
             'roleable_type' => $target->getMorphClass(),
             'roleable_id' => $target->getKey(),
-        ]);
-
-        // Add tenant scoping if multitenancy is enabled
-        if (config('porter.multitenancy.enabled', false)) {
-            $tenantId = $this->resolveTenantIdForAssignment($user, $target);
-            $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-            $query->where($tenantColumn, $tenantId);
-        }
-
-        $roster = $query->first();
+        ])->first();
 
         if (! $roster) {
             return null;
@@ -378,21 +295,12 @@ final class RoleManager implements RoleManagerContract
 
     private function removeWithinTransaction(AssignableEntity $user, RoleableEntity $target): void
     {
-        $query = Roster::where([
+        $assignments = Roster::where([
             'assignable_type' => $user->getMorphClass(),
             'assignable_id' => $user->getKey(),
             'roleable_id' => $target->getKey(),
             'roleable_type' => $target->getMorphClass(),
-        ]);
-
-        // Add tenant scoping if multitenancy is enabled
-        if (config('porter.multitenancy.enabled', false)) {
-            $tenantId = $this->resolveTenantIdForAssignment($user, $target);
-            $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-            $query->where($tenantColumn, $tenantId);
-        }
-
-        $assignments = $query->lockForUpdate()->get();
+        ])->lockForUpdate()->get();
 
         if ($assignments->isNotEmpty()) {
             // Clear role check caches BEFORE deletion
@@ -431,22 +339,13 @@ final class RoleManager implements RoleManagerContract
     private function executeRoleCheck(AssignableEntity $user, RoleableEntity $target, string $encryptedKey): bool
     {
         // First try exact match (most common case)
-        $query = Roster::where([
+        $exists = Roster::where([
             'assignable_id' => $user->getKey(),
             'assignable_type' => $user->getMorphClass(),
             'roleable_id' => $target->getKey(),
             'roleable_type' => $target->getMorphClass(),
             'role_key' => $encryptedKey,
-        ]);
-
-        // Add tenant scoping if multitenancy is enabled
-        if (config('porter.multitenancy.enabled', false)) {
-            $tenantId = $this->resolveTenantIdForAssignment($user, $target);
-            $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-            $query->where($tenantColumn, $tenantId);
-        }
-
-        $exists = $query->exists();
+        ])->exists();
 
         if ($exists) {
             return true;
@@ -463,22 +362,13 @@ final class RoleManager implements RoleManagerContract
                     $plainKey = $role::getPlainKey();
 
                     // Check if there's a record with the plain text key
-                    $plainQuery = Roster::where([
+                    $exists = Roster::where([
                         'assignable_id' => $user->getKey(),
                         'assignable_type' => $user->getMorphClass(),
                         'roleable_id' => $target->getKey(),
                         'roleable_type' => $target->getMorphClass(),
                         'role_key' => $plainKey,
-                    ]);
-
-                    // Add tenant scoping if multitenancy is enabled
-                    if (config('porter.multitenancy.enabled', false)) {
-                        $tenantId = $this->resolveTenantIdForAssignment($user, $target);
-                        $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-                        $plainQuery->where($tenantColumn, $tenantId);
-                    }
-
-                    $exists = $plainQuery->exists();
+                    ])->exists();
 
                     return $exists;
                 }
@@ -597,8 +487,13 @@ final class RoleManager implements RoleManagerContract
             $targetTenantKey = $target->getPorterTenantKey(); // Self-reference
             
             // Assignable must belong to the same tenant as the target tenant entity
-            if ($assignableTenant && $assignableTenant !== $targetTenantKey) {
+            if ($assignableTenant !== null && $assignableTenant !== $targetTenantKey) {
                 throw TenantIntegrityException::mismatch($assignableTenant, $targetTenantKey);
+            }
+            
+            // If assignable has no tenant but target is a tenant entity, that's also invalid
+            if ($assignableTenant === null && $targetTenantKey !== null) {
+                throw TenantIntegrityException::assignableWithoutTenant();
             }
             
             return; // Skip normal validation for tenant entities
