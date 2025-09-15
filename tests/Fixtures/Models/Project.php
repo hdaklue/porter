@@ -10,10 +10,10 @@ use Hdaklue\Porter\Multitenancy\Contracts\PorterRoleableContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Project extends Model implements RoleableEntity, PorterRoleableContract
+class Project extends Model implements PorterRoleableContract, RoleableEntity
 {
-    use ReceivesRoleAssignments;
     use HasFactory;
+    use ReceivesRoleAssignments;
 
     protected $table = 'test_projects';
 

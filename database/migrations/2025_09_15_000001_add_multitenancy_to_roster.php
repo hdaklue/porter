@@ -13,7 +13,7 @@ return new class() extends Migration
      */
     public function up(): void
     {
-        if (!config('porter.multitenancy.enabled', false)) {
+        if (! config('porter.multitenancy.enabled', false)) {
             return;
         }
 
@@ -24,7 +24,7 @@ return new class() extends Migration
 
         Schema::connection($connection)->table($tableName, function (Blueprint $table) use ($tenantColumn) {
             $tenantKeyType = config('porter.multitenancy.tenant_key_type', 'ulid');
-            
+
             // Add nullable tenant column based on configured key type
             match ($tenantKeyType) {
                 'integer' => $table->unsignedBigInteger($tenantColumn)->nullable(),

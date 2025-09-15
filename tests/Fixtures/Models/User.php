@@ -55,6 +55,7 @@ class User extends Authenticatable implements AssignableEntity, PorterAssignable
     public function setCurrentTenant(?string $tenantId): self
     {
         $this->currentTenant = $tenantId;
+
         return $this;
     }
 
@@ -65,6 +66,7 @@ class User extends Authenticatable implements AssignableEntity, PorterAssignable
     {
         try {
             $roleManager = app(\Hdaklue\Porter\RoleManager::class);
+
             return $roleManager->check($this, $entity, $roleName);
         } catch (\Exception $e) {
             return false;

@@ -10,7 +10,7 @@ use Hdaklue\Porter\Multitenancy\Contracts\PorterRoleableContract;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 
-class TestProject extends Model implements Arrayable, RoleableEntity, PorterRoleableContract
+class TestProject extends Model implements Arrayable, PorterRoleableContract, RoleableEntity
 {
     use ReceivesRoleAssignments;
 

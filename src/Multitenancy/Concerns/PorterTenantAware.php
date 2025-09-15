@@ -14,7 +14,7 @@ trait PorterTenantAware
     public function scopeForTenant(Builder $query, mixed $tenantId): Builder
     {
         $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-        
+
         if ($tenantId === null) {
             return $query->whereNull($tenantColumn);
         }
@@ -28,7 +28,7 @@ trait PorterTenantAware
     public function scopeWithoutTenant(Builder $query): Builder
     {
         $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-        
+
         return $query->whereNull($tenantColumn);
     }
 
@@ -46,12 +46,12 @@ trait PorterTenantAware
      */
     public function getTenantId(): mixed
     {
-        if (!config('porter.multitenancy.enabled', false)) {
+        if (! config('porter.multitenancy.enabled', false)) {
             return null;
         }
 
         $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-        
+
         return $this->getAttribute($tenantColumn);
     }
 
@@ -73,7 +73,7 @@ trait PorterTenantAware
      */
     public function belongsToTenant(mixed $tenantId): bool
     {
-        if (!config('porter.multitenancy.enabled', false)) {
+        if (! config('porter.multitenancy.enabled', false)) {
             return true; // No multitenancy = belongs to all
         }
 

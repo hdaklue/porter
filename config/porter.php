@@ -150,7 +150,7 @@ return [
          | The data type for tenant keys. This determines the column type in the roster table.
          | Supported types:
          | - 'integer': For auto-increment or numeric tenant IDs
-         | - 'uuid': For UUID v4 tenant identifiers  
+         | - 'uuid': For UUID v4 tenant identifiers
          | - 'ulid': For ULID tenant identifiers
          | - 'string': For custom string-based tenant keys
          */
@@ -161,7 +161,6 @@ return [
          | This allows customization of the column name if needed.
          */
         'tenant_column' => env('PORTER_TENANT_COLUMN', 'tenant_id'),
-
 
         /*
          | Automatically scope all queries by current tenant. When true,

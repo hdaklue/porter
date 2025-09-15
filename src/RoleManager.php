@@ -12,11 +12,11 @@ use Hdaklue\Porter\Contracts\RoleManagerContract;
 use Hdaklue\Porter\Events\RoleAssigned;
 use Hdaklue\Porter\Events\RoleChanged;
 use Hdaklue\Porter\Events\RoleRemoved;
+use Hdaklue\Porter\Models\Roster;
 use Hdaklue\Porter\Multitenancy\Contracts\PorterAssignableContract;
 use Hdaklue\Porter\Multitenancy\Contracts\PorterRoleableContract;
 use Hdaklue\Porter\Multitenancy\Contracts\PorterTenantContract;
 use Hdaklue\Porter\Multitenancy\Exceptions\TenantIntegrityException;
-use Hdaklue\Porter\Models\Roster;
 use Hdaklue\Porter\Roles\BaseRole;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -40,7 +40,7 @@ final class RoleManager implements RoleManagerContract
             }
 
             $encryptedKey = $roleInstance::getDbKey();
-            
+
             // Determine tenant_id for this assignment
             $tenantId = $this->resolveTenantIdForAssignment($user, $target);
 
@@ -479,30 +479,30 @@ final class RoleManager implements RoleManagerContract
      */
     private function validateTenantIntegrity(AssignableEntity $user, RoleableEntity $target): void
     {
-        if (!config('porter.multitenancy.enabled', false)) {
+        if (! config('porter.multitenancy.enabled', false)) {
             return;
         }
 
         // Special handling when roleable IS the tenant entity
         if ($target instanceof PorterTenantContract) {
-            $assignableTenant = $user instanceof PorterAssignableContract ? $user->getCurrentTenantKey() : null;
+            $assignableTenant = $user instanceof PorterAssignableContract ? $user->getPorterCurrentTenantKey() : null;
             $targetTenantKey = $target->getPorterTenantKey(); // Self-reference
-            
+
             // Assignable must belong to the same tenant as the target tenant entity
             if ($assignableTenant !== null && $assignableTenant !== $targetTenantKey) {
                 throw TenantIntegrityException::mismatch($assignableTenant, $targetTenantKey);
             }
-            
+
             // If assignable has no tenant but target is a tenant entity, that's also invalid
             if ($assignableTenant === null && $targetTenantKey !== null) {
                 throw TenantIntegrityException::assignableWithoutTenant();
             }
-            
+
             return; // Skip normal validation for tenant entities
         }
 
         // Normal validation for non-tenant roleables
-        $assignableTenant = $user instanceof PorterAssignableContract ? $user->getCurrentTenantKey() : null;
+        $assignableTenant = $user instanceof PorterAssignableContract ? $user->getPorterCurrentTenantKey() : null;
         $roleableTenant = $target instanceof PorterRoleableContract ? $target->getPorterTenantKey() : null;
 
         // Both must have tenant context or both must not have it
@@ -525,12 +525,12 @@ final class RoleManager implements RoleManagerContract
      */
     private function getTenantCacheKey(AssignableEntity $user, RoleableEntity $target): string
     {
-        if (!config('porter.multitenancy.enabled', false) || !config('porter.multitenancy.cache_per_tenant', true)) {
+        if (! config('porter.multitenancy.enabled', false) || ! config('porter.multitenancy.cache_per_tenant', true)) {
             return '';
         }
 
-        $tenantKey = $user instanceof PorterAssignableContract ? $user->getCurrentTenantKey() : null;
-        
+        $tenantKey = $user instanceof PorterAssignableContract ? $user->getPorterCurrentTenantKey() : null;
+
         return $tenantKey ? ":t:{$tenantKey}" : '';
     }
 
@@ -540,7 +540,7 @@ final class RoleManager implements RoleManagerContract
      */
     private function resolveTenantIdForAssignment(AssignableEntity $user, RoleableEntity $target): ?string
     {
-        if (!config('porter.multitenancy.enabled', false)) {
+        if (! config('porter.multitenancy.enabled', false)) {
             return null;
         }
 
@@ -550,7 +550,7 @@ final class RoleManager implements RoleManagerContract
         }
 
         // For regular roleables, get tenant from assignable entity
-        return $user instanceof PorterAssignableContract ? $user->getCurrentTenantKey() : null;
+        return $user instanceof PorterAssignableContract ? $user->getPorterCurrentTenantKey() : null;
     }
 
     /**
@@ -559,12 +559,12 @@ final class RoleManager implements RoleManagerContract
      */
     public function destroyTenantRoles(string $tenantKey): int
     {
-        if (!config('porter.multitenancy.enabled', false)) {
+        if (! config('porter.multitenancy.enabled', false)) {
             throw new DomainException('Multitenancy is not enabled. Cannot destroy tenant roles.');
         }
 
         $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
-        
+
         return Roster::where($tenantColumn, $tenantKey)->delete();
     }
 }

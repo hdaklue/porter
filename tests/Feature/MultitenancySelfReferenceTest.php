@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-use Hdaklue\Porter\RoleManager;
-use Hdaklue\Porter\Tests\Fixtures\TestUser;
-use Hdaklue\Porter\Multitenancy\Concerns\IsPorterTenant;
-use Hdaklue\Porter\Multitenancy\Contracts\PorterTenantContract;
-use Hdaklue\Porter\Multitenancy\Contracts\PorterAssignableContract;
 use Hdaklue\Porter\Concerns\ReceivesRoleAssignments;
 use Hdaklue\Porter\Contracts\RoleableEntity;
+use Hdaklue\Porter\Multitenancy\Concerns\IsPorterTenant;
+use Hdaklue\Porter\Multitenancy\Contracts\PorterTenantContract;
+use Hdaklue\Porter\RoleManager;
+use Hdaklue\Porter\Tests\Fixtures\TestUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
@@ -34,7 +33,7 @@ beforeEach(function () {
     // Add tenant_id to roster table for multitenancy tests
     if (Schema::hasTable('roster')) {
         Schema::table('roster', function ($table) {
-            if (!Schema::hasColumn('roster', 'tenant_id')) {
+            if (! Schema::hasColumn('roster', 'tenant_id')) {
                 $table->string('tenant_id')->nullable();
                 $table->index(['tenant_id'], 'porter_tenant_idx');
             }
@@ -64,6 +63,7 @@ class TestOrganization extends Model implements PorterTenantContract, RoleableEn
     use ReceivesRoleAssignments;
 
     protected $table = 'test_organizations';
+
     protected $fillable = ['name'];
 }
 
@@ -73,7 +73,7 @@ describe('Self-Reference Tenant Scoping', function () {
         $user = TestUser::create([
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'current_tenant_id' => (string) $organization->id
+            'current_tenant_id' => (string) $organization->id,
         ]);
 
         $roleManager = app(RoleManager::class);
@@ -90,7 +90,7 @@ describe('Self-Reference Tenant Scoping', function () {
         $user = TestUser::create([
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'current_tenant_id' => (string) $organization->id
+            'current_tenant_id' => (string) $organization->id,
         ]);
 
         $roleManager = app(RoleManager::class);
@@ -102,7 +102,7 @@ describe('Self-Reference Tenant Scoping', function () {
         expect($user->hasRoleOn($organization, 'TestAdmin'))->toBeTrue();
         expect($roleManager->hasRoleOn($user, $organization, 'TestAdmin'))->toBeTrue();
         expect($roleManager->hasAnyRoleOn($user, $organization))->toBeTrue();
-        
+
         $role = $roleManager->getRoleOn($user, $organization);
         expect($role)->not->toBeNull();
         expect($role->getName())->toBe('TestAdmin');
@@ -113,7 +113,7 @@ describe('Self-Reference Tenant Scoping', function () {
         $user = TestUser::create([
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'current_tenant_id' => (string) $organization->id
+            'current_tenant_id' => (string) $organization->id,
         ]);
 
         $roleManager = app(RoleManager::class);
@@ -133,7 +133,7 @@ describe('Self-Reference Tenant Scoping', function () {
         $user = TestUser::create([
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'current_tenant_id' => (string) $organization->id
+            'current_tenant_id' => (string) $organization->id,
         ]);
 
         $roleManager = app(RoleManager::class);
@@ -150,17 +150,17 @@ describe('Self-Reference Tenant Scoping', function () {
 
     it('works with multiple users on same tenant entity', function () {
         $organization = TestOrganization::create(['name' => 'Test Org']);
-        
+
         $user1 = TestUser::create([
             'name' => 'User 1',
             'email' => 'user1@example.com',
-            'current_tenant_id' => (string) $organization->id
+            'current_tenant_id' => (string) $organization->id,
         ]);
-        
+
         $user2 = TestUser::create([
             'name' => 'User 2',
             'email' => 'user2@example.com',
-            'current_tenant_id' => (string) $organization->id
+            'current_tenant_id' => (string) $organization->id,
         ]);
 
         $roleManager = app(RoleManager::class);

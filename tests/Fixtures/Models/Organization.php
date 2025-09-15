@@ -11,11 +11,11 @@ use Hdaklue\Porter\Contracts\RoleableEntity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Organization extends Model implements RoleableEntity, PorterTenantContract
+class Organization extends Model implements PorterTenantContract, RoleableEntity
 {
-    use ReceivesRoleAssignments;
-    use IsPorterTenant;
     use HasFactory;
+    use IsPorterTenant;
+    use ReceivesRoleAssignments;
 
     protected $table = 'test_organizations';
 

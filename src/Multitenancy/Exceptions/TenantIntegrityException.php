@@ -18,14 +18,14 @@ class TenantIntegrityException extends Exception
     public static function assignableWithoutTenant(): self
     {
         return new self(
-            "Tenant integrity violation: Assignable entity does not have a tenant context, but multitenancy is enabled."
+            'Tenant integrity violation: Assignable entity does not have a tenant context, but multitenancy is enabled.'
         );
     }
 
     public static function roleableWithoutTenant(): self
     {
         return new self(
-            "Tenant integrity violation: Roleable entity does not have a tenant context, but multitenancy is enabled."
+            'Tenant integrity violation: Roleable entity does not have a tenant context, but multitenancy is enabled.'
         );
     }
 }

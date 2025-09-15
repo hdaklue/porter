@@ -12,5 +12,5 @@ interface PorterAssignableContract
      *
      * @return string|null The tenant key, or null if not in a tenant context
      */
-    public function getPorterCurrentTenantKey(): null|string;
+    public function getPorterCurrentTenantKey(): ?string;
 }
