@@ -29,10 +29,10 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
  * Route::get('/projects/{project}/members', [ProjectController::class, 'members'])
  *     ->middleware('porter.role_on:project,anyrole');
  */
-final class RequireRoleOn
+final readonly class RequireRoleOn
 {
     public function __construct(
-        private readonly RoleManagerContract $roleManager,
+        private RoleManagerContract $roleManager,
     ) {}
 
     /**

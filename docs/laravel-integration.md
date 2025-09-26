@@ -4,6 +4,22 @@ Porter integrates seamlessly with Laravel's existing authorization system, worki
 
 **The Game Changer**: Porter's `isAtLeastOn()` method eliminates verbose `hasRole('admin') || hasRole('manager')` patterns with a single hierarchy-aware call. Instead of listing every acceptable role, you simply express business logic: "needs at least manager level." This one-liner approach combines assignment checking + hierarchy comparison, delivering both cleaner code and better maintainability.
 
+## Table of Contents
+
+- [Policy Classes](#policy-classes) - Integrate with Laravel's authorization policies
+- [Blade Directives](#blade-directives) - Template-level role checking and UI control
+  - [Built-in Blade Directives](#built-in-blade-directives) - `@hasRoleOn`, `@hasAnyRoleOn`, `@isAtLeastOn`
+  - [Custom Blade Directives](#custom-blade-directives) - Create your own Porter-powered directives
+- [Middleware](#middleware) - Route-level role protection
+- [Gates](#gates) - Complex authorization logic with Laravel Gates
+- [Form Requests](#form-requests) - Authorization and validation in form requests
+- [Validation Rules](#validation-rules) - Specialized rules for role assignment validation
+  - [AssignedTo Rule](#assignedto-rule) - Validate existing role assignments
+  - [NotAssignedTo Rule](#notassignedto-rule) - Prevent duplicate assignments
+- [API Resources](#api-resources) - Include role data in API responses
+- [Event Listeners](#event-listeners) - React to role assignment changes
+- [Testing](#testing) - Test your Porter-powered authorization
+
 ## Policy Classes
 
 Porter works perfectly with Laravel's Policy classes for clean, testable authorization logic:
@@ -398,6 +414,212 @@ class UpdateProjectRequest extends FormRequest
     }
 }
 ```
+
+## Validation Rules
+
+Porter provides two specialized validation rules for ensuring proper role assignments in your forms and API requests:
+
+### AssignedTo Rule
+
+Validates that an assignable entity (like a user) **is** assigned to a roleable entity (like a project). Perfect for operations that require existing role assignments:
+
+```php
+use Hdaklue\Porter\Rules\AssignedTo;
+
+class RemoveUserFromProjectRequest extends FormRequest
+{
+    public function rules()
+    {
+        $project = $this->route('project');
+        $userToRemove = User::find($this->input('user_id'));
+
+        return [
+            'user_id' => [
+                'required',
+                'exists:users,id',
+                new AssignedTo($userToRemove, $project)
+            ],
+        ];
+    }
+}
+```
+
+### NotAssignedTo Rule
+
+Validates that an assignable entity **is not** assigned to a roleable entity. Ideal for preventing duplicate assignments:
+
+```php
+use Hdaklue\Porter\Rules\NotAssignedTo;
+
+class InviteUserToProjectRequest extends FormRequest
+{
+    public function rules()
+    {
+        $project = $this->route('project');
+        $userToInvite = User::find($this->input('user_id'));
+
+        return [
+            'user_id' => [
+                'required',
+                'exists:users,id',
+                new NotAssignedTo($userToInvite, $project)
+            ],
+            'role' => 'required|string|in:admin,manager,editor,viewer',
+        ];
+    }
+}
+```
+
+### Real-World Validation Examples
+
+#### Project Team Management
+```php
+class ProjectTeamController extends Controller
+{
+    public function addMember(AddMemberRequest $request, Project $project)
+    {
+        $user = User::find($request->user_id);
+        $role = $request->role;
+
+        // Validation ensures user is not already assigned
+        Porter::assign($user, $project, $role);
+
+        return redirect()->back()->with('success', 'Member added successfully');
+    }
+
+    public function removeMember(RemoveMemberRequest $request, Project $project)
+    {
+        $user = User::find($request->user_id);
+
+        // Validation ensures user is currently assigned
+        Porter::remove($user, $project);
+
+        return redirect()->back()->with('success', 'Member removed successfully');
+    }
+}
+```
+
+#### Dynamic Form Validation
+```php
+class ProjectInviteRequest extends FormRequest
+{
+    public function rules()
+    {
+        $project = $this->route('project');
+        $rules = [
+            'email' => 'required|email',
+            'role' => 'required|string|in:admin,manager,editor,viewer',
+        ];
+
+        // If user already exists, ensure they're not already assigned
+        if ($this->has('user_id')) {
+            $user = User::find($this->input('user_id'));
+            $rules['user_id'] = [
+                'required',
+                'exists:users,id',
+                new NotAssignedTo($user, $project)
+            ];
+        }
+
+        return $rules;
+    }
+
+    public function messages()
+    {
+        return [
+            'user_id.assigned_to' => 'This user is already a member of the project.',
+        ];
+    }
+}
+```
+
+#### Bulk Operations Validation
+```php
+class BulkAssignRolesRequest extends FormRequest
+{
+    public function rules()
+    {
+        $project = $this->route('project');
+
+        return [
+            'assignments' => 'required|array|min:1',
+            'assignments.*.user_id' => [
+                'required',
+                'exists:users,id',
+                function ($attribute, $value, $fail) use ($project) {
+                    $user = User::find($value);
+                    $notAssignedRule = new NotAssignedTo($user, $project);
+
+                    $notAssignedRule->validate($attribute, $value, $fail);
+                }
+            ],
+            'assignments.*.role' => 'required|string|in:admin,manager,editor,viewer',
+        ];
+    }
+}
+```
+
+#### API Validation
+```php
+class ApiProjectMemberController extends Controller
+{
+    public function store(Request $request, Project $project)
+    {
+        $user = User::find($request->user_id);
+
+        $validator = Validator::make($request->all(), [
+            'user_id' => [
+                'required',
+                'exists:users,id',
+                new NotAssignedTo($user, $project)
+            ],
+            'role' => 'required|string|in:admin,manager,editor,viewer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        Porter::assign($user, $project, $request->role);
+
+        return response()->json([
+            'message' => 'User assigned successfully',
+            'data' => new ProjectMemberResource($user)
+        ], 201);
+    }
+}
+```
+
+### Error Messages
+
+Both validation rules provide clear error messages:
+
+- **AssignedTo**: "The :attribute is not assigned to this entity."
+- **NotAssignedTo**: "The :attribute is already assigned to this entity."
+
+You can customize these messages in your form request's `messages()` method:
+
+```php
+public function messages()
+{
+    return [
+        'user_id.not_assigned_to' => 'The selected user is already a member of this project.',
+        'user_id.assigned_to' => 'The selected user is not currently a member of this project.',
+    ];
+}
+```
+
+### Benefits
+
+- **Prevents Duplicate Assignments**: `NotAssignedTo` stops users from being assigned twice
+- **Validates Existing Assignments**: `AssignedTo` ensures operations target actual members
+- **Clean Error Handling**: Provides clear feedback for invalid assignment states
+- **Integration Ready**: Works seamlessly with Laravel's validation system
+- **Type Safe**: Uses Porter's entity contracts for reliable validation
+- **Performance Optimized**: Leverages Porter's efficient role checking methods
 
 ## API Resources
 

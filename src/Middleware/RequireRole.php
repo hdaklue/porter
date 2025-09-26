@@ -28,10 +28,10 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
  * Route::get('/projects/{project}/activity', [ProjectController::class, 'activity'])
  *     ->middleware('porter.role:anyrole');
  */
-final class RequireRole
+final readonly class RequireRole
 {
     public function __construct(
-        private readonly RoleManagerContract $roleManager,
+        private RoleManagerContract $roleManager,
     ) {}
 
     /**
@@ -52,7 +52,7 @@ final class RequireRole
             throw new AuthenticationException('User must be authenticated and implement AssignableEntity.');
         }
 
-        // Try to get target entity from route parameters
+        // Try to get the target entity from route parameters
         $target = $this->extractTargetFromRoute($request);
 
         if (! $target) {
@@ -65,7 +65,7 @@ final class RequireRole
         if (count($roles) === 1 && (trim($roles[0]) === '*' || trim($roles[0]) === 'anyrole')) {
             $hasRequiredRole = $this->roleManager->hasAnyRoleOn($user, $target);
         } else {
-            // Check if user has any of the required roles on the target entity
+            // Check if a user has any of the required roles on the target entity
             $hasRequiredRole = false;
             foreach ($roles as $roleName) {
                 try {
