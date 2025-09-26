@@ -80,6 +80,14 @@ class PorterServiceProvider extends ServiceProvider
             __DIR__.'/../../database/migrations/' => database_path('migrations'),
         ], 'porter-migrations');
 
+        // Publish translations
+        $this->publishes([
+            __DIR__.'/../../lang' => $this->app->langPath('vendor/porter'),
+        ], 'porter-translations');
+
+        // Load translations
+        $this->loadTranslationsFrom(__DIR__.'/../../lang', 'porter');
+
         // Load migrations (for when running package tests)
         // Commented out to avoid Laravel version compatibility issues with check() constraints
         // $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
