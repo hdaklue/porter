@@ -28,4 +28,11 @@ class TenantIntegrityException extends Exception
             'Tenant integrity violation: Roleable entity does not have a tenant context, but multitenancy is enabled.'
         );
     }
+
+    public static function noRoleInTenant(mixed $roleableTenant): self
+    {
+        return new self(
+            "Tenant access denied: User does not have any role in tenant '{$roleableTenant}'. Users must have at least one role in a tenant to be assigned to entities within it."
+        );
+    }
 }

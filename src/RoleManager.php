@@ -484,26 +484,27 @@ final class RoleManager implements RoleManagerContract
         }
 
         // Special handling when roleable IS the tenant entity
+        // Allow cross-tenant assignments when assigning TO a tenant entity
         if ($target instanceof PorterTenantContract) {
-            $assignableTenant = $user instanceof PorterAssignableContract ? $user->getPorterCurrentTenantKey() : null;
-            $targetTenantKey = $target->getPorterTenantKey(); // Self-reference
-
-            // Assignable must belong to the same tenant as the target tenant entity
-            if ($assignableTenant !== null && $assignableTenant !== $targetTenantKey) {
-                throw TenantIntegrityException::mismatch($assignableTenant, $targetTenantKey);
-            }
-
-            // If assignable has no tenant but target is a tenant entity, that's also invalid
-            if ($assignableTenant === null && $targetTenantKey !== null) {
-                throw TenantIntegrityException::assignableWithoutTenant();
-            }
-
-            return; // Skip normal validation for tenant entities
+            return; // Skip validation - allow assignment to any tenant entity
         }
 
         // Normal validation for non-tenant roleables
         $assignableTenant = $user instanceof PorterAssignableContract ? $user->getPorterCurrentTenantKey() : null;
         $roleableTenant = $target instanceof PorterRoleableContract ? $target->getPorterTenantKey() : null;
+
+        // Allow if user already has any role in the target's tenant (existing tenant participant)
+        if ($roleableTenant !== null) {
+            $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
+            $hasRoleInTenant = Roster::where([
+                'assignable_type' => $user->getMorphClass(),
+                'assignable_id' => $user->getKey(),
+            ])->where($tenantColumn, $roleableTenant)->exists();
+
+            if ($hasRoleInTenant) {
+                return; // Allow assignment - user is already a participant in this tenant
+            }
+        }
 
         // Both must have tenant context or both must not have it
         if ($assignableTenant === null && $roleableTenant !== null) {
@@ -514,9 +515,9 @@ final class RoleManager implements RoleManagerContract
             throw TenantIntegrityException::roleableWithoutTenant();
         }
 
-        // If both have tenant context, they must match
+        // User must have a role in the target's tenant to be assigned
         if ($assignableTenant !== null && $roleableTenant !== null && $assignableTenant !== $roleableTenant) {
-            throw TenantIntegrityException::mismatch($assignableTenant, $roleableTenant);
+            throw TenantIntegrityException::noRoleInTenant($roleableTenant);
         }
     }
 

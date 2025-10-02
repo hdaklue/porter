@@ -79,8 +79,10 @@ describe('Tenant Integrity Validation', function () {
         $project = new TestProject(['name' => 'Test Project', 'description' => 'Test', 'tenant_id' => 'team_123']);
         $project->save();
 
-        expect(fn () => app(RoleManager::class)->assign($user, $project, 'TestAdmin'))
-            ->not->toThrow(TenantIntegrityException::class);
+        $roleManager = app(RoleManager::class);
+        $roleManager->assign($user, $project, 'TestAdmin');
+
+        expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
     });
 
     it('throws exception when assignable has no tenant but roleable does', function () {
@@ -105,7 +107,7 @@ describe('Tenant Integrity Validation', function () {
             ->toThrow(TenantIntegrityException::class, 'Roleable entity does not have a tenant context');
     });
 
-    it('throws exception when tenants mismatch', function () {
+    it('throws exception when tenants mismatch on first assignment', function () {
         $user = new TestUser(['name' => 'Test User', 'email' => 'test@example.com', 'current_tenant_id' => 'team_123']);
         $user->save();
 
@@ -113,7 +115,30 @@ describe('Tenant Integrity Validation', function () {
         $project->save();
 
         expect(fn () => app(RoleManager::class)->assign($user, $project, 'TestAdmin'))
-            ->toThrow(TenantIntegrityException::class, 'Tenant integrity violation');
+            ->toThrow(TenantIntegrityException::class, 'Tenant access denied');
+    });
+
+    it('allows role changes for existing participants even with tenant mismatch', function () {
+        $user = new TestUser(['name' => 'Test User', 'email' => 'test@example.com', 'current_tenant_id' => 'team_123']);
+        $user->save();
+
+        $project = new TestProject(['name' => 'Test Project', 'description' => 'Test', 'tenant_id' => 'team_123']);
+        $project->save();
+
+        $roleManager = app(RoleManager::class);
+
+        // Initial assignment with matching tenant
+        $roleManager->assign($user, $project, 'TestAdmin');
+        expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
+
+        // Change user's current tenant
+        $user->current_tenant_id = 'team_456';
+        $user->save();
+
+        // Should still allow role changes for existing participants
+        $roleManager->changeRoleOn($user, $project, 'TestEditor');
+        expect($user->hasRoleOn($project, 'TestEditor'))->toBeTrue();
+        expect($user->hasRoleOn($project, 'TestAdmin'))->toBeFalse();
     });
 
     it('allows assignment when both entities have no tenant', function () {
@@ -123,8 +148,32 @@ describe('Tenant Integrity Validation', function () {
         $project = new TestProject(['name' => 'Test Project', 'description' => 'Test']);
         $project->save();
 
-        expect(fn () => app(RoleManager::class)->assign($user, $project, 'TestAdmin'))
-            ->not->toThrow(TenantIntegrityException::class);
+        $roleManager = app(RoleManager::class);
+        $roleManager->assign($user, $project, 'TestAdmin');
+
+        expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
+    });
+
+    it('allows re-assignment for existing participants', function () {
+        $user = new TestUser(['name' => 'Test User', 'email' => 'test@example.com', 'current_tenant_id' => 'team_123']);
+        $user->save();
+
+        $project = new TestProject(['name' => 'Test Project', 'description' => 'Test', 'tenant_id' => 'team_123']);
+        $project->save();
+
+        $roleManager = app(RoleManager::class);
+
+        // Initial assignment
+        $roleManager->assign($user, $project, 'TestAdmin');
+        expect($user->hasRoleOn($project, 'TestAdmin'))->toBeTrue();
+
+        // User switches tenant context
+        $user->current_tenant_id = 'team_999';
+        $user->save();
+
+        // Re-assign with different role (should work because user already has a role)
+        $roleManager->assign($user, $project, 'TestEditor');
+        expect($user->hasRoleOn($project, 'TestEditor'))->toBeTrue();
     });
 });
 

@@ -446,8 +446,9 @@ Porter includes **optional multitenancy support** for SaaS applications and ente
 ### Key Features
 - 🏢 **Optional Configuration**: Enable multitenancy via config when needed
 - 📋 **Contract-Based Design**: Clear interfaces requiring explicit implementation (no confusing default behaviors)
-- 🔒 **Tenant Integrity**: Automatic validation prevents cross-tenant role assignments
+- 🔒 **Smart Tenant Validation**: Flexible validation allowing cross-tenant assignments for tenant entities and tenant participants
 - 🔄 **Self-Reference Support**: Tenant entities can be roleables (users can have roles on their own tenant)
+- 🤝 **Participant-Based Access**: Users with roles in a tenant can be assigned to any entity within that tenant
 - 🗂️ **Flexible Tenant Keys**: Support for various tenant identifier types (string, uuid, ulid, integer)
 - ⚡ **Cache Isolation**: Tenant-specific caching for optimal performance
 - 🧼 **Bulk Operations**: Efficient tenant cleanup with `destroyTenantRoles` method
