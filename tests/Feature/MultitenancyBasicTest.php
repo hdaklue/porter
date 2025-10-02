@@ -118,7 +118,7 @@ describe('Tenant Integrity Validation', function () {
             ->toThrow(TenantIntegrityException::class, 'Tenant access denied');
     });
 
-    it('allows role changes for existing participants even with tenant mismatch', function () {
+    it('enforces tenant integrity on role changes when user switches tenant', function () {
         $user = new TestUser(['name' => 'Test User', 'email' => 'test@example.com', 'current_tenant_id' => 'team_123']);
         $user->save();
 
@@ -135,10 +135,9 @@ describe('Tenant Integrity Validation', function () {
         $user->current_tenant_id = 'team_456';
         $user->save();
 
-        // Should still allow role changes for existing participants
-        $roleManager->changeRoleOn($user, $project, 'TestEditor');
-        expect($user->hasRoleOn($project, 'TestEditor'))->toBeTrue();
-        expect($user->hasRoleOn($project, 'TestAdmin'))->toBeFalse();
+        // Should block role changes when user no longer has tenant context
+        expect(fn () => $roleManager->changeRoleOn($user, $project, 'TestEditor'))
+            ->toThrow(TenantIntegrityException::class, 'Tenant access denied');
     });
 
     it('allows assignment when both entities have no tenant', function () {
@@ -210,9 +209,9 @@ describe('DestroyTenantRoles Method', function () {
         expect(\Hdaklue\Porter\Models\Roster::where('tenant_id', '456')->count())->toBe(1);
 
         // Destroy tenant 123 roles
-        $deletedCount = $roleManager->destroyTenantRoles('123');
+        $deleted = $roleManager->destroyTenantRoles('123');
 
-        expect($deletedCount)->toBe(2);
+        expect($deleted)->toBeTrue();
         expect(\Hdaklue\Porter\Models\Roster::where('tenant_id', '123')->count())->toBe(0);
         expect(\Hdaklue\Porter\Models\Roster::where('tenant_id', '456')->count())->toBe(1);
     });
@@ -224,9 +223,9 @@ describe('DestroyTenantRoles Method', function () {
             ->toThrow(\DomainException::class, 'Multitenancy is not enabled');
     });
 
-    it('returns zero when no roles exist for tenant', function () {
-        $deletedCount = app(RoleManager::class)->destroyTenantRoles('nonexistent');
+    it('returns false when no roles exist for tenant', function () {
+        $deleted = app(RoleManager::class)->destroyTenantRoles('nonexistent');
 
-        expect($deletedCount)->toBe(0);
+        expect($deleted)->toBeFalse();
     });
 });

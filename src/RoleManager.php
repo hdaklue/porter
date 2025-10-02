@@ -84,40 +84,17 @@ final class RoleManager implements RoleManagerContract
 
     public function changeRoleOn(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): void
     {
-        DB::transaction(function () use ($user, $target, $role) {
-            $newRole = $this->resolveRole($role);
+        $newRole = $this->resolveRole($role);
 
-            $newEncryptedKey = $newRole::getDbKey();
+        // Get the old role for event dispatching
+        $oldRole = $this->getRoleOn($user, $target);
 
-            $model = Roster::where([
-                'assignable_type' => $user->getMorphClass(),
-                'assignable_id' => $user->getKey(),
-                'roleable_id' => $target->getKey(),
-                'roleable_type' => $target->getMorphClass(),
-            ])->lockForUpdate()->first();
+        $this->remove($user, $target);
+        $this->assign($user, $target, $newRole);
 
-            if ($model) {
-                $oldEncryptedKey = $model->getRoleDBKey();
-                $oldRole = RoleFactory::tryMake($oldEncryptedKey);
-
-                // Clear old role cache before changing
-                $oldCacheKey = $this->generateRoleCheckCacheKeyByEncryptedKey($user, $target, $oldEncryptedKey);
-                Cache::forget($oldCacheKey);
-
-                $model->role_key = $newEncryptedKey;
-                $model->save();
-
-                if ($oldRole) {
-                    RoleChanged::dispatch($user, $target, $oldRole, $newRole);
-                }
-            } else {
-                $this->assign($user, $target, $newRole);
-
-                return;
-            }
-        });
-
-        $this->clearCache($target, $user);
+        if ($oldRole) {
+            RoleChanged::dispatch($user, $target, $oldRole, $newRole);
+        }
     }
 
     public function getParticipantsHasRole(RoleableEntity $target, string|RoleContract $role): Collection
@@ -558,7 +535,7 @@ final class RoleManager implements RoleManagerContract
      * Destroy all role assignments for a specific tenant.
      * Cache will self-heal as stale entries expire and new queries return correct results.
      */
-    public function destroyTenantRoles(string $tenantKey): int
+    public function destroyTenantRoles(string $tenantKey): bool
     {
         if (! config('porter.multitenancy.enabled', false)) {
             throw new DomainException('Multitenancy is not enabled. Cannot destroy tenant roles.');
@@ -566,6 +543,6 @@ final class RoleManager implements RoleManagerContract
 
         $tenantColumn = config('porter.multitenancy.tenant_column', 'tenant_id');
 
-        return Roster::where($tenantColumn, $tenantKey)->delete();
+        return Roster::where($tenantColumn, $tenantKey)->delete() > 0;
     }
 }
