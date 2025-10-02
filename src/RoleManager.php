@@ -389,16 +389,18 @@ final class RoleManager implements RoleManagerContract
 
     private function clearRoleCheckCaches(AssignableEntity $user, RoleableEntity $target): void
     {
-        $prefix = config('porter.cache.key_prefix', 'porter');
-
-        // Clear role name-based caches
-        $baseKey = "{$prefix}:role_check:{$user->getMorphClass()}:{$user->getKey()}:{$target->getMorphClass()}:{$target->getKey()}";
-        $commonRoles = ['admin', 'manager', 'editor', 'viewer', 'user', 'guest'];
-        foreach ($commonRoles as $roleName) {
-            Cache::forget("{$baseKey}:{$roleName}");
+        // Clear cache for ALL registered roles for this user-target combination
+        // This ensures both old and new role caches are cleared during role changes
+        foreach (RoleFactory::getAllWithKeys() as $roleKey => $roleClass) {
+            try {
+                $role = new $roleClass();
+                $encryptedKey = $role::getDbKey();
+                $cacheKey = $this->generateRoleCheckCacheKeyByEncryptedKey($user, $target, $encryptedKey);
+                Cache::forget($cacheKey);
+            } catch (\Exception) {
+                // Skip invalid roles
+            }
         }
-
-        // Role check caches are cleared directly in the transaction methods
     }
 
     private function clearAllAssignedEntitiesCaches(AssignableEntity $user): void
