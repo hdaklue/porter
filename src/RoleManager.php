@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Hdaklue\Porter;
 
 use DomainException;
+use Hdaklue\Porter\Cache\RoleCacheManager;
 use Hdaklue\Porter\Contracts\AssignableEntity;
 use Hdaklue\Porter\Contracts\RoleableEntity;
 use Hdaklue\Porter\Contracts\RoleContract;
@@ -19,12 +20,21 @@ use Hdaklue\Porter\Multitenancy\Contracts\PorterTenantContract;
 use Hdaklue\Porter\Multitenancy\Exceptions\TenantIntegrityException;
 use Hdaklue\Porter\Roles\BaseRole;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use Throwable;
 
 final class RoleManager implements RoleManagerContract
 {
+    /**
+     * Assign a role to a user on a target entity.
+     *
+     * @param AssignableEntity $user The user receiving the role
+     * @param RoleableEntity $target The entity the role is assigned on
+     * @param string|RoleContract $role The role to assign (name or instance)
+     * @throws Throwable
+     * @throws TenantIntegrityException
+     */
     public function assign(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): void
     {
         // Check tenant integrity if multitenancy is enabled
@@ -65,23 +75,45 @@ final class RoleManager implements RoleManagerContract
             }
         });
 
-        $this->clearCache($target, $user);
+        RoleCacheManager::clearCache($target, $user);
     }
 
+    /**
+     * Remove all role assignments for a user on a target entity.
+     *
+     * @param AssignableEntity $user The user whose roles to remove
+     * @param RoleableEntity $target The entity to remove roles from
+     */
     public function remove(AssignableEntity $user, RoleableEntity $target): void
     {
         DB::transaction(function () use ($user, $target) {
             $this->removeWithinTransaction($user, $target);
         });
 
-        $this->clearCache($target, $user);
+        RoleCacheManager::clearCache($target, $user);
     }
 
+    /**
+     * Check if an assignable entity has a specific role on a roleable entity.
+     *
+     * @param AssignableEntity $assignableEntity The entity to check
+     * @param RoleableEntity $roleableEntity The target entity
+     * @param RoleContract $roleContract The role to check for
+     * @return bool True if the role exists
+     */
     public function check(AssignableEntity $assignableEntity, RoleableEntity $roleableEntity, RoleContract $roleContract): bool
     {
         return $this->performRoleCheck($assignableEntity, $roleableEntity, $roleContract::getDbKey());
     }
 
+    /**
+     * Change a user's role on a target entity.
+     * Removes the old role and assigns the new one, dispatching a RoleChanged event.
+     *
+     * @param AssignableEntity $user The user whose role to change
+     * @param RoleableEntity $target The entity to change the role on
+     * @param string|RoleContract $role The new role to assign
+     */
     public function changeRoleOn(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): void
     {
         $newRole = $this->resolveRole($role);
@@ -97,6 +129,13 @@ final class RoleManager implements RoleManagerContract
         }
     }
 
+    /**
+     * Get all participants who have a specific role on a target entity.
+     *
+     * @param RoleableEntity $target The entity to query
+     * @param string|RoleContract $role The role to filter by
+     * @return Collection<int, AssignableEntity> Collection of assignable entities
+     */
     public function getParticipantsHasRole(RoleableEntity $target, string|RoleContract $role): Collection
     {
         $roleInstance = $this->resolveRole($role);
@@ -109,6 +148,14 @@ final class RoleManager implements RoleManagerContract
         ])->with('assignable')->get()->pluck('assignable');
     }
 
+    /**
+     * Get assigned entities by specific keys and type for a user.
+     *
+     * @param AssignableEntity $target The user to query
+     * @param array<int, mixed> $keys The entity IDs to filter by
+     * @param string $type The entity type (morph class)
+     * @return Collection<int, RoleableEntity> Collection of roleable entities
+     */
     public function getAssignedEntitiesByKeysByType(AssignableEntity $target, array $keys, string $type): Collection
     {
         return Roster::query()->where([
@@ -122,9 +169,17 @@ final class RoleManager implements RoleManagerContract
             ->pluck('roleable');
     }
 
+    /**
+     * Get all assigned entities of a specific type for a user.
+     * Results are cached if caching is enabled.
+     *
+     * @param AssignableEntity $entity The user to query
+     * @param string $type The entity type (morph class)
+     * @return Collection<int, RoleableEntity> Collection of roleable entities
+     */
     public function getAssignedEntitiesByType(AssignableEntity $entity, string $type): Collection
     {
-        if (! $this->shouldCache()) {
+        if (! RoleCacheManager::isEnabled()) {
             return Roster::where([
                 'roleable_type' => $type,
                 'assignable_type' => $entity->getMorphClass(),
@@ -134,9 +189,9 @@ final class RoleManager implements RoleManagerContract
                 ->get()->pluck('roleable');
         }
 
-        $cacheKey = $this->generateAssignedEntitiesCacheKey($entity, $type);
+        $cacheKey = RoleCacheManager::generateAssignedEntitiesCacheKey($entity, $type);
 
-        return Cache::remember($cacheKey, $this->getCacheTtl('assigned_entities'), fn () => Roster::where([
+        return RoleCacheManager::remember($cacheKey, RoleCacheManager::getTtl('assigned_entities'), fn () => Roster::where([
             'roleable_type' => $type,
             'assignable_type' => $entity->getMorphClass(),
             'assignable_id' => $entity->getKey(),
@@ -146,9 +201,16 @@ final class RoleManager implements RoleManagerContract
             ->pluck('roleable'));
     }
 
+    /**
+     * Get all participants with their role assignments for a target entity.
+     * Results are cached if caching is enabled.
+     *
+     * @param RoleableEntity $target The entity to query
+     * @return Collection<int, Roster> Collection of Roster models with assignable relationships
+     */
     public function getParticipantsWithRoles(RoleableEntity $target): Collection
     {
-        if (! $this->shouldCache()) {
+        if (! RoleCacheManager::isEnabled()) {
             return Roster::where([
                 'roleable_id' => $target->getKey(),
                 'roleable_type' => $target->getMorphClass(),
@@ -157,16 +219,27 @@ final class RoleManager implements RoleManagerContract
                 ->get();
         }
 
-        return Cache::remember($this->generateParticipantsCacheKey($target), $this->getCacheTtl('participants'), function () use ($target) {
-            return Roster::where([
+        return RoleCacheManager::remember(
+            RoleCacheManager::generateParticipantsCacheKey($target),
+            RoleCacheManager::getTtl('participants'),
+            fn () => Roster::where([
                 'roleable_id' => $target->getKey(),
                 'roleable_type' => $target->getMorphClass(),
             ])
                 ->with('assignable')
-                ->get();
-        });
+                ->get()
+        );
     }
 
+    /**
+     * Check if a user has a specific role on a target entity.
+     * Returns false if the role doesn't exist.
+     *
+     * @param AssignableEntity $user The user to check
+     * @param RoleableEntity $target The target entity
+     * @param string|RoleContract $role The role to check for
+     * @return bool True if the user has the role
+     */
     public function hasRoleOn(AssignableEntity $user, RoleableEntity $target, string|RoleContract $role): bool
     {
         if (is_string($role)) {
@@ -186,6 +259,13 @@ final class RoleManager implements RoleManagerContract
         return $this->performRoleCheck($user, $target, $encryptedKey);
     }
 
+    /**
+     * Check if a user has any role on a target entity.
+     *
+     * @param AssignableEntity $user The user to check
+     * @param RoleableEntity $target The target entity
+     * @return bool True if the user has any role
+     */
     public function hasAnyRoleOn(AssignableEntity $user, RoleableEntity $target): bool
     {
         return Roster::where([
@@ -196,6 +276,13 @@ final class RoleManager implements RoleManagerContract
         ])->exists();
     }
 
+    /**
+     * Get the role a user has on a target entity.
+     *
+     * @param AssignableEntity $user The user to check
+     * @param RoleableEntity $target The target entity
+     * @return RoleContract|null The role instance or null if no role found
+     */
     public function getRoleOn(AssignableEntity $user, RoleableEntity $target): ?RoleContract
     {
         $roster = Roster::where([
@@ -214,6 +301,14 @@ final class RoleManager implements RoleManagerContract
         return RoleFactory::tryMake($encryptedKey);
     }
 
+    /**
+     * Check if a user's role on a target is at least the specified role level.
+     *
+     * @param AssignableEntity $user The user to check
+     * @param RoleContract $role The minimum role level required
+     * @param RoleableEntity $target The target entity
+     * @return bool True if the user's role is at least the specified level
+     */
     public function isAtLeastOn(AssignableEntity $user, RoleContract $role, RoleableEntity $target): bool
     {
         $userRole = $this->getRoleOn($user, $target);
@@ -225,6 +320,12 @@ final class RoleManager implements RoleManagerContract
         return $userRole->isAtLeast($role);
     }
 
+    /**
+     * Ensure a role exists in the system.
+     *
+     * @param string $roleIdentifier The role name or identifier
+     * @throws DomainException If the role does not exist
+     */
     public function ensureRoleExists(string $roleIdentifier): void
     {
         try {
@@ -238,40 +339,46 @@ final class RoleManager implements RoleManagerContract
         }
     }
 
+    /**
+     * Clear all caches related to a target entity.
+     * Optionally clear caches for a specific user-target combination.
+     *
+     * @param RoleableEntity $target The target entity
+     * @param AssignableEntity|null $user Optional user to clear specific caches for
+     */
     public function clearCache(RoleableEntity $target, ?AssignableEntity $user = null): void
     {
-        // Forget participants cache
-        Cache::forget($this->generateParticipantsCacheKey($target));
-
-        if ($user) {
-            // Forget assignable entity cache for this specific type
-            Cache::forget($this->generateAssignedEntitiesCacheKey($user, $target->getMorphClass()));
-
-            // Clear all role check caches for this user-target combination
-            $this->clearRoleCheckCaches($user, $target);
-
-            // Clear assigned entities cache for all types for this user
-            $this->clearAllAssignedEntitiesCaches($user);
-        } else {
-            // If no user specified, clear all participant-related caches
-            $this->clearAllParticipantRelatedCaches($target);
-        }
+        RoleCacheManager::clearCache($target, $user);
     }
 
+    /**
+     * Generate a cache key for participants of a target entity.
+     *
+     * @param RoleableEntity $target The target entity
+     * @return string The cache key
+     */
     public function generateParticipantsCacheKey(RoleableEntity $target): string
     {
-        $prefix = config('porter.cache.key_prefix', 'porter');
-
-        return "{$prefix}:participants:{$target->getMorphClass()}:{$target->getKey()}";
+        return RoleCacheManager::generateParticipantsCacheKey($target);
     }
 
+    /**
+     * Clear caches for multiple target entities in bulk.
+     *
+     * @param Collection<int, RoleableEntity> $targets Collection of entities to clear caches for
+     */
     public function bulkClearCache(Collection $targets): void
     {
-        $targets->each(function (RoleableEntity $target) {
-            $this->clearCache($target);
-        });
+        RoleCacheManager::bulkClearCache($targets);
     }
 
+    /**
+     * Remove role assignments within a database transaction.
+     * Locks rows for update, clears caches, and dispatches RoleRemoved events.
+     *
+     * @param AssignableEntity $user The user whose roles to remove
+     * @param RoleableEntity $target The target entity
+     */
     private function removeWithinTransaction(AssignableEntity $user, RoleableEntity $target): void
     {
         $assignments = Roster::where([
@@ -285,8 +392,7 @@ final class RoleManager implements RoleManagerContract
             // Clear role check caches BEFORE deletion
             foreach ($assignments as $assignment) {
                 $encryptedKey = $assignment->getRoleDBKey();
-                $cacheKey = $this->generateRoleCheckCacheKeyByEncryptedKey($user, $target, $encryptedKey);
-                Cache::forget($cacheKey);
+                RoleCacheManager::clearRoleCheckCache($user, $target, $encryptedKey);
             }
 
             $assignmentIds = $assignments->pluck('id');
@@ -302,19 +408,36 @@ final class RoleManager implements RoleManagerContract
         }
     }
 
+    /**
+     * Perform a role check with optional caching.
+     *
+     * @param AssignableEntity $user The user to check
+     * @param RoleableEntity $target The target entity
+     * @param string $encryptedKey The encrypted role key
+     * @return bool True if the role exists
+     */
     private function performRoleCheck(AssignableEntity $user, RoleableEntity $target, string $encryptedKey): bool
     {
-        if (! $this->shouldCache()) {
+        if (! RoleCacheManager::isEnabled()) {
             return $this->executeRoleCheck($user, $target, $encryptedKey);
         }
 
-        $cacheKey = $this->generateRoleCheckCacheKeyByEncryptedKey($user, $target, $encryptedKey);
+        $cacheKey = RoleCacheManager::generateRoleCheckCacheKeyByEncryptedKey($user, $target, $encryptedKey);
 
-        return Cache::remember($cacheKey, $this->getCacheTtl('role_check'),
+        return RoleCacheManager::remember($cacheKey, RoleCacheManager::getTtl('role_check'),
             fn () => $this->executeRoleCheck($user, $target, $encryptedKey)
         );
     }
 
+    /**
+     * Execute the actual database query for role check.
+     * Supports backward compatibility with plain text keys when using hashed storage.
+     *
+     * @param AssignableEntity $user The user to check
+     * @param RoleableEntity $target The target entity
+     * @param string $encryptedKey The encrypted role key
+     * @return bool True if the role exists
+     */
     private function executeRoleCheck(AssignableEntity $user, RoleableEntity $target, string $encryptedKey): bool
     {
         // First try exact match (most common case)
@@ -359,84 +482,23 @@ final class RoleManager implements RoleManagerContract
         return false;
     }
 
-    private function generateRoleCheckCacheKey(AssignableEntity $user, RoleableEntity $target, RoleContract $role): string
-    {
-        $prefix = config('porter.cache.key_prefix', 'porter');
-        $tenantKey = $this->getTenantCacheKey($user, $target);
-
-        return "{$prefix}:role_check{$tenantKey}:{$user->getMorphClass()}:{$user->getKey()}:{$target->getMorphClass()}:{$target->getKey()}:{$role->getName()}";
-    }
-
-    private function generateRoleCheckCacheKeyByEncryptedKey(AssignableEntity $user, RoleableEntity $target, string $encryptedKey): string
-    {
-        $prefix = config('porter.cache.key_prefix', 'porter');
-        $tenantKey = $this->getTenantCacheKey($user, $target);
-
-        return "{$prefix}:role_check_key{$tenantKey}:{$user->getMorphClass()}:{$user->getKey()}:{$target->getMorphClass()}:{$target->getKey()}:".hash('sha256', $encryptedKey);
-    }
-
-    private function clearAssignableEntityCache(AssignableEntity $user, string $type): void
-    {
-        Cache::forget($this->generateAssignedEntitiesCacheKey($user, $type));
-    }
-
-    private function generateAssignedEntitiesCacheKey(AssignableEntity $target, string $type): string
-    {
-        $prefix = config('porter.cache.key_prefix', 'porter');
-
-        return "{$prefix}:{$target->getMorphClass()}:{$target->getKey()}_{$type}_entities";
-    }
-
-    private function clearRoleCheckCaches(AssignableEntity $user, RoleableEntity $target): void
-    {
-        // Clear cache for ALL registered roles for this user-target combination
-        // This ensures both old and new role caches are cleared during role changes
-        foreach (RoleFactory::getAllWithKeys() as $roleKey => $roleClass) {
-            try {
-                $role = new $roleClass();
-                $encryptedKey = $role::getDbKey();
-                $cacheKey = $this->generateRoleCheckCacheKeyByEncryptedKey($user, $target, $encryptedKey);
-                Cache::forget($cacheKey);
-            } catch (\Exception) {
-                // Skip invalid roles
-            }
-        }
-    }
-
-    private function clearAllAssignedEntitiesCaches(AssignableEntity $user): void
-    {
-        $prefix = config('porter.cache.key_prefix', 'porter');
-
-        // Clear assigned entities caches for common entity types
-        $commonTypes = ['App\\Models\\User', 'App\\Models\\Project', 'App\\Models\\Organization', 'App\\Models\\Team'];
-        foreach ($commonTypes as $type) {
-            $cacheKey = "{$prefix}:{$user->getMorphClass()}:{$user->getKey()}_{$type}_entities";
-            Cache::forget($cacheKey);
-        }
-    }
-
-    private function clearAllParticipantRelatedCaches(RoleableEntity $target): void
-    {
-        // For now, just clear the participants cache
-        // In a more comprehensive implementation, we might clear related caches
-        Cache::forget($this->generateParticipantsCacheKey($target));
-    }
-
-    private function shouldCache(): bool
-    {
-        return config('porter.cache.enabled', true);
-    }
-
+    /**
+     * Get the cache TTL for a specific cache type.
+     *
+     * @param string $type The cache type (role_check, participants, assigned_entities)
+     * @return int The TTL in seconds
+     */
     public function getCacheTtl(string $type): int
     {
-        return match ($type) {
-            'role_check' => (int) config('porter.cache.role_check_ttl', config('porter.cache.ttl', 1800)),
-            'participants' => (int) config('porter.cache.participants_ttl', config('porter.cache.ttl', 3600)),
-            'assigned_entities' => (int) config('porter.cache.assigned_entities_ttl', config('porter.cache.ttl', 3600)),
-            default => (int) config('porter.cache.ttl', 3600)
-        };
+        return RoleCacheManager::getTtl($type);
     }
 
+    /**
+     * Resolve a role from string or RoleContract instance.
+     *
+     * @param string|RoleContract $role The role to resolve
+     * @return RoleContract The resolved role instance
+     */
     private function resolveRole(string|RoleContract $role): RoleContract
     {
         if ($role instanceof RoleContract) {
@@ -455,6 +517,10 @@ final class RoleManager implements RoleManagerContract
     /**
      * Validate tenant integrity between assignable and roleable entities.
      * Handles special case when roleable entity IS the tenant (self-reference).
+     *
+     * @param AssignableEntity $user The user to validate
+     * @param RoleableEntity $target The target entity
+     * @throws TenantIntegrityException If tenant integrity validation fails
      */
     private function validateTenantIntegrity(AssignableEntity $user, RoleableEntity $target): void
     {
@@ -501,22 +567,12 @@ final class RoleManager implements RoleManagerContract
     }
 
     /**
-     * Get tenant cache key segment for cache scoping.
-     */
-    private function getTenantCacheKey(AssignableEntity $user, RoleableEntity $target): string
-    {
-        if (! config('porter.multitenancy.enabled', false) || ! config('porter.multitenancy.cache_per_tenant', true)) {
-            return '';
-        }
-
-        $tenantKey = $user instanceof PorterAssignableContract ? $user->getPorterCurrentTenantKey() : null;
-
-        return $tenantKey ? ":t:{$tenantKey}" : '';
-    }
-
-    /**
      * Resolve the tenant ID for a role assignment.
      * Handles both regular entities and tenant entities as roleables.
+     *
+     * @param AssignableEntity $user The user being assigned the role
+     * @param RoleableEntity $target The target entity
+     * @return string|null The tenant ID or null if multitenancy is disabled
      */
     private function resolveTenantIdForAssignment(AssignableEntity $user, RoleableEntity $target): ?string
     {
@@ -536,6 +592,10 @@ final class RoleManager implements RoleManagerContract
     /**
      * Destroy all role assignments for a specific tenant.
      * Cache will self-heal as stale entries expire and new queries return correct results.
+     *
+     * @param string $tenantKey The tenant key/ID
+     * @return bool True if any roles were deleted
+     * @throws DomainException If multitenancy is not enabled
      */
     public function destroyTenantRoles(string $tenantKey): bool
     {
