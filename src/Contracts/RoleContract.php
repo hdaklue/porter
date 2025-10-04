@@ -48,6 +48,11 @@ interface RoleContract
     public function isEqualTo(RoleContract $other): bool;
 
     /**
+     * Check if this role is higher than or equal to another role.
+     */
+    public function isHigherThanOrEqual(RoleContract $other): bool;
+
+    /**
      * Check if this role is at least the same level as another.
      */
     public function isAtLeast(RoleContract $other): bool;

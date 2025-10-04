@@ -41,6 +41,14 @@ trait HasRoleHierarchy
     }
 
     /**
+     * Check if this role is higher than or equal to another role.
+     */
+    public function isHigherThanOrEqual(RoleContract $other): bool
+    {
+        return $this->getLevel() >= $other->getLevel();
+    }
+
+    /**
      * Check if this role is at least the same level as another.
      */
     public function isAtLeast(RoleContract $other): bool

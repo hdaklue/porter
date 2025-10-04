@@ -132,7 +132,7 @@ final class RoleFactory
         // Build the role class name
         $roleClass = "{$namespace}\\{$roleName}";
 
-        // Include the role file if class doesn't exist
+        // Include the role file if the class doesn't exist
         if (! class_exists($roleClass)) {
             if (file_exists($filePath)) {
                 require_once $filePath;
@@ -148,14 +148,48 @@ final class RoleFactory
         return new $roleClass();
     }
 
-    public static function getRolesLowerThan(RoleContract $roleContract)
+    /**
+     * Get all roles that are lower than the given role.
+     *
+     * @param  RoleContract  $roleContract  The role to compare against
+     * @return \Illuminate\Support\Collection Collection of roles with lower hierarchy level
+     */
+    public static function getRolesLowerThan(RoleContract $roleContract): \Illuminate\Support\Collection
     {
         return collect(BaseRole::all())->filter(fn (RoleContract $item) => $item->isLowerThan($roleContract));
     }
 
-    public static function getRolesHigherThan(RoleContract $roleContract)
+    /**
+     * Get all roles that are higher than the given role.
+     *
+     * @param  RoleContract  $roleContract  The role to compare against
+     * @return \Illuminate\Support\Collection Collection of roles with higher hierarchy level
+     */
+    public static function getRolesHigherThan(RoleContract $roleContract): \Illuminate\Support\Collection
     {
         return collect(BaseRole::all())->filter(fn (RoleContract $item) => $item->isHigherThan($roleContract));
+    }
+
+    /**
+     * Get all roles that are lower than or equal to the given role.
+     *
+     * @param  RoleContract  $roleContract  The role to compare against
+     * @return \Illuminate\Support\Collection Collection of roles with lower or equal hierarchy level
+     */
+    public static function getRolesLowerThanOrEqual(RoleContract $roleContract): \Illuminate\Support\Collection
+    {
+        return collect(BaseRole::all())->filter(fn (RoleContract $item) => $item->isLowerThanOrEqual($roleContract));
+    }
+
+    /**
+     * Get all roles that are higher than or equal to the given role.
+     *
+     * @param  RoleContract  $roleContract  The role to compare against
+     * @return \Illuminate\Support\Collection Collection of roles with higher or equal hierarchy level
+     */
+    public static function getRolesHigherThanOrEqual(RoleContract $roleContract): \Illuminate\Support\Collection
+    {
+        return collect(BaseRole::all())->filter(fn (RoleContract $item) => $item->isHigherThanOrEqual($roleContract));
     }
 
     /**
